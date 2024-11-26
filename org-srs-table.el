@@ -73,6 +73,18 @@
   (when-let ((column (alist-get name (org-srs-table-column-name-number-alist))))
     (org-table-goto-column column) t))
 
+(defun org-srs-table-field (&optional column)
+  (cl-assert (org-srs-table-goto-column column))
+  (org-table-get nil nil))
+
+(defun \(setf\ org-srs-table-field\) (value &optional column)
+  (if column
+      (progn
+        (cl-assert (org-srs-table-goto-column column))
+        (setf (org-srs-table-field) value))
+    (org-table-blank-field)
+    (insert value)))
+
 (defvar org-table-get-stored-formulas@org-table-formula-named-column-lhs-support nil)
 
 (define-advice org-table-get-stored-formulas (:around (fun &rest args) org-table-formula-named-column-lhs-support)

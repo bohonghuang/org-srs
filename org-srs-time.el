@@ -2,6 +2,17 @@
 
 (require 'parse-time)
 
+(cl-defun org-srs-time-truncate-hms (time &optional (d 0))
+  (let ((time (cl-fill (decode-time time) 0 :start 0 :end 3)))
+    (cl-incf (cl-fourth time) d)
+    (encode-time time)))
+
+(cl-defun org-srs-time-today (&optional (offset 0))
+  (org-srs-time-truncate-hms (current-time) offset))
+
+(defun org-srs-time-tomorrow ()
+  (org-srs-time-today 1))
+
 (cl-deftype org-srs-timestamp () 'string)
 
 (defun org-srs-timestamp-now (&optional time)

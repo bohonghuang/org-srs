@@ -4,6 +4,14 @@
 (require 'org-element)
 (require 'org-srs-log)
 
+(cl-eval-when (:compile-toplevel :load-toplevel :execute)
+  (unless (fboundp 'org-element-begin)
+    (defun org-element-begin (node)
+      (org-element-property :begin node)))
+  (unless (fboundp 'org-element-end)
+    (defun org-element-end (node)
+      (org-element-property :end node))))
+
 (defconst org-srs-item-regexp (rx "srsitem:" (group (+ (not (any ?: blank control)))) (? "::" (group (+ (not (any blank control)))))))
 
 (defun org-srs-item-name ()
