@@ -9,4 +9,6 @@
 (require 'org-srs-query)
 (require 'org-srs-time)
 
+(require 'org-srs-item-card)
+
 (provide 'org-srs)

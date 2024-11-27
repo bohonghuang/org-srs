@@ -51,6 +51,11 @@
       (when (re-search-forward org-srs-item-header-regexp (org-element-end element) t)
         (org-srs-item-from-match-data)))))
 
-(cl-defgeneric org-srs-item-review (item &rest args))
+(defun org-srs-item-append (&rest args)
+  (org-srs-log-end-of-drawer)
+  (org-open-line 1)
+  (apply #'org-srs-item-insert (car args) (cdr args)))
+
+(cl-defgeneric org-srs-item-review (type &rest args))
 
 (provide 'org-srs-item)
