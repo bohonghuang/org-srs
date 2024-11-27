@@ -12,7 +12,7 @@
   (lambda () (cl-loop for predicate in predicates thereis (funcall predicate))))
 
 (defun org-srs-query-predicate-not (predicate)
-  (lambda () (lambda () (not (funcall predicate)))))
+  (lambda () (not (funcall predicate))))
 
 (defun org-srs-query-predicate-new ()
   (lambda ()
@@ -45,14 +45,16 @@
      (to (unless fromp (org-srs-time-truncate-hms (current-time) 1))))
   (lambda ()
     (save-excursion
-      (when (re-search-forward org-srs-log-latest-timestamp-regexp (org-table-end))
-        (when-let ((time (cl-loop with end = (org-table-end)
-                                  initially (org-table-goto-line 2)
-                                  when (org-srs-table-field 'rating)
-                                  return (org-srs-table-field 'timestamp)
-                                  do (forward-line 1)
-                                  until (> (point) end))))
-          (and (time-less-p from time) (or (null to) (time-less-p time to))))))))
+      (when-let ((time (cl-loop with end = (org-table-end)
+                                initially (org-table-goto-line 2)
+                                for previous-rating = "" then current-rating
+                                for current-rating = (org-srs-table-field 'rating)
+                                for current-timestamp = (org-srs-table-field 'timestamp)
+                                when (and (string-empty-p previous-rating) (not (string-empty-p current-rating)))
+                                return (parse-iso8601-time-string current-timestamp)
+                                do (forward-line 1)
+                                until (>= (point) end))))
+        (and (time-less-p from time) (or (null to) (time-less-p time to)))))))
 
 (defun org-srs-query-predicate-reviewed (&rest args)
   (org-srs-query-predicate-and
