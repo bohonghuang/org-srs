@@ -8,7 +8,7 @@
   (apply #'org-srs-item-review 'card args))
 
 (defun org-srs-item-end-of-entry ()
-  (or (prog1 (org-goto-first-child) (backward-char)) (org-end-of-subtree)))
+  (or (and (org-goto-first-child) (prog1 (backward-char) (point))) (org-end-of-subtree)))
 
 (defun org-srs-item-card-regions ()
   (let ((initalp t) (front nil) (back nil))
@@ -78,7 +78,12 @@
   (ignore type args)
   (org-back-to-heading)
   (org-narrow-to-subtree)
-  (add-hook 'org-srs-review-after-rate-hook 'widen)
+  (add-hook 'org-srs-review-after-rate-hook
+            (letrec ((widen (lambda ()
+                              (remove-hook 'org-srs-review-after-rate-hook widen)
+                              (widen))))
+              widen)
+            -100)
   (org-srs-item-card-hide)
   (unwind-protect (read-key "Press any key to flip the card")
     (org-srs-item-card-show)))

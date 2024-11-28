@@ -66,7 +66,9 @@
     (save-excursion
       (cl-loop initially (goto-char (point-min))
                while (re-search-forward org-srs-item-header-regexp nil t)
-               when (save-match-data (funcall predicate))
+               when (save-match-data
+                      (re-search-forward org-table-line-regexp)
+                      (funcall predicate))
                collect (cl-multiple-value-list (org-srs-item-from-match-data))))))
 
 (provide 'org-srs-query)

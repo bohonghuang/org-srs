@@ -65,7 +65,10 @@
         (org-srs-log-hide-drawer org-srs-review-item-marker)
         (add-hook
          'org-srs-review-after-rate-hook
-         (apply #'apply-partially #'org-srs-review args)))
+         (letrec ((review (lambda ()
+                            (remove-hook 'org-srs-review-after-rate-hook review)
+                            (apply #'org-srs-review args))))
+           review)))
     (message "Review done")))
 
 (defconst org-srs-review-ratings '(:easy :good :hard :again))

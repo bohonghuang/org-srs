@@ -15,7 +15,6 @@
     (org-table-align)))
 
 (cl-defun org-srs-log-repeat (rating &aux (args nil))
-  (cl-assert (org-at-table-p))
   (org-srs-table-goto-starred-line)
   (forward-line -1)
   (unless (org-at-table-hline-p)
