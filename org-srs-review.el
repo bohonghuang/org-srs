@@ -52,12 +52,48 @@
      (cl-assert (not (file-directory-p source)))
      (org-srs-review-pending-items (find-file-noselect source)))))
 
+(defvar org-srs-review-item-marker nil)
+
 (defun org-srs-review (&rest args)
   (interactive)
   (if-let ((item-and-id (cl-first (apply #'org-srs-review-pending-items args))))
       (cl-destructuring-bind (item id) item-and-id
         (apply #'org-srs-item-goto item-and-id)
-        (apply #'org-srs-item-review (car item) (cdr item)))
+        (setf org-srs-review-item-marker (point-marker))
+        (org-srs-log-hide-drawer org-srs-review-item-marker)
+        (apply #'org-srs-item-review (car item) (cdr item))
+        (org-srs-log-hide-drawer org-srs-review-item-marker)
+        (add-hook
+         'org-srs-review-after-rate-hook
+         (apply #'apply-partially #'org-srs-review args)))
     (message "Review done")))
+
+(defconst org-srs-review-ratings '(:easy :good :hard :again))
+
+(defvar org-srs-review-after-rate-hook nil)
+
+(defun org-srs-review-rate (rating &optional position)
+  (interactive (list (read (completing-read "Rating: " org-srs-review-ratings nil t))))
+  (save-excursion
+    (if-let ((position (or position org-srs-review-item-marker)))
+        (goto-char position)
+      (cl-multiple-value-call #'org-srs-item-goto (org-srs-item-at-point)))
+    (org-srs-table-goto-starred-line)
+    (cl-assert
+     (time-less-p
+      (parse-iso8601-time-string (org-srs-table-field 'timestamp))
+      (org-srs-time-tomorrow)))
+    (org-srs-item-repeat (cl-nth-value 0 (org-srs-item-at-point)) rating)
+    (org-srs-log-hide-drawer)
+    (setf org-srs-review-item-marker nil))
+  (run-hooks 'org-srs-review-after-rate-hook))
+
+(defmacro org-srs-review-define-rating-commands ()
+  `(progn . ,(cl-loop for rating in org-srs-review-ratings
+                      collect `(defun ,(intern (format "%s%s" 'org-srs-review-rate- (string-trim (symbol-name rating) ":"))) ()
+                                 (interactive)
+                                 (org-srs-review-rate ,rating)))))
+
+(org-srs-review-define-rating-commands)
 
 (provide 'org-srs-review)

@@ -31,8 +31,14 @@
   (org-srs-log-insert))
 
 (defun org-srs-item-goto (item &rest args)
-  (cl-assert (org-link-search (apply #'org-srs-item-link item args)))
-  (forward-line 1))
+  (let ((org-link-search-must-match-exact-headline t))
+    (org-link-search (apply #'org-srs-item-link item args))
+    (forward-line 1)))
+
+(defun org-srs-item-exists-p (item &rest args)
+  (save-excursion
+    (ignore-error error
+      (apply #'org-srs-item-goto item args))))
 
 (defun org-srs-item-repeat (item rating)
   (org-srs-item-goto item)
@@ -45,17 +51,26 @@
 
 (defun org-srs-item-at-point ()
   (save-excursion
-    (goto-char (org-table-begin))
-    (let ((element (org-element-at-point)))
-      (goto-char (org-element-begin element))
-      (when (re-search-forward org-srs-item-header-regexp (org-element-end element) t)
-        (org-srs-item-from-match-data)))))
+    (when (or (org-at-table-p) (looking-at-p org-srs-item-header-regexp))
+      (goto-char (org-table-begin))
+      (let ((element (org-element-at-point)))
+        (goto-char (org-element-begin element))
+        (when (re-search-forward org-srs-item-header-regexp (org-element-end element) t)
+          (org-srs-item-from-match-data))))))
 
-(defun org-srs-item-append (&rest args)
+(defun org-srs-item-new (&rest args)
+  (cl-assert (not (apply #'org-srs-item-exists-p (car args) (cdr args))))
   (org-srs-log-end-of-drawer)
   (org-open-line 1)
   (apply #'org-srs-item-insert (car args) (cdr args)))
 
 (cl-defgeneric org-srs-item-review (type &rest args))
+
+(defun org-srs-item-types ()
+  (cl-loop for method in (cl--generic-method-table (cl-generic-ensure-function 'org-srs-item-review))
+           for (eql symbol) = (ensure-list (cl-first (cl--generic-method-specializers method)))
+           when (eq eql 'eql)
+           do (cl-assert (eq (cl-first symbol) 'quote))
+           and collect (cl-second symbol)))
 
 (provide 'org-srs-item)

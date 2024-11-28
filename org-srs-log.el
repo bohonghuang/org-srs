@@ -33,22 +33,41 @@
 
 (defconst org-srs-log-latest-timestamp-regexp (rx (regexp org-srs-table-starred-line-regexp) (* blank) (group (regexp org-srs-timestamp-regexp))))
 
-(defcustom org-srs-log-drawer-name "SRSITEMS" "")
+(defcustom org-srs-log-drawer-name "SRSDATA" "")
 
 (defun org-srs-log-end-of-drawer ()
   (save-restriction
     (org-narrow-to-subtree)
     (org-back-to-heading)
-    (if (re-search-forward (rx bol (* blank) ":" (literal org-srs-log-drawer-name) ":" (* blank) eol) nil t)
-        (progn
-          (goto-char (org-element-end (org-element-at-point)))
-          (re-search-backward (rx bol (* blank) ":END:" (* blank) eol)))
-      (org-end-of-meta-data t)
-      (unless (looking-back (rx bol (* blank)) (pos-bol))
-        (org-return))
-      (insert ":" org-srs-log-drawer-name ":")
-      (org-return)
-      (insert ":END:")
-      (beginning-of-line))))
+    (let ((heading-start (point))
+          (drawer-start-regexp (rx bol (* blank) ":" (literal org-srs-log-drawer-name) ":" (* blank) eol))
+          (drawer-end-regexp (rx bol (* blank) ":END:" (* blank) eol)))
+      (if (re-search-forward drawer-start-regexp nil t)
+          (progn
+            (goto-char (org-element-end (org-element-at-point)))
+            (re-search-backward drawer-end-regexp))
+        (org-end-of-meta-data t)
+        (unless (re-search-backward drawer-end-regexp heading-start t)
+          (org-back-to-heading))
+        (end-of-line)
+        (newline-and-indent)
+        (insert ":" org-srs-log-drawer-name ":")
+        (newline-and-indent)
+        (insert ":END:")
+        (beginning-of-line)))))
+
+(defun org-srs-log-beginning-of-drawer ()
+  (save-restriction
+    (org-narrow-to-subtree)
+    (org-back-to-heading)
+    (let ((heading-start (point)))
+      (org-srs-log-end-of-drawer)
+      (re-search-backward (rx bol (* blank) ":" (literal org-srs-log-drawer-name) ":" (* blank) eol)))))
+
+(cl-defun org-srs-log-hide-drawer (&optional (position (point)))
+  (save-excursion
+    (goto-char position)
+    (org-srs-log-beginning-of-drawer)
+    (org-fold-hide-drawer-toggle t)))
 
 (provide 'org-srs-log)

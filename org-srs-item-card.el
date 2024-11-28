@@ -77,10 +77,10 @@
 (cl-defmethod org-srs-item-review ((type (eql 'card)) &rest args)
   (ignore type args)
   (org-back-to-heading)
-  (save-restriction
-    (org-narrow-to-subtree)
-    (org-srs-item-card-hide)
-    (unwind-protect (read-key "Press any key to flip the card")
-      (org-srs-item-card-show))))
+  (org-narrow-to-subtree)
+  (add-hook 'org-srs-review-after-rate-hook 'widen)
+  (org-srs-item-card-hide)
+  (unwind-protect (read-key "Press any key to flip the card")
+    (org-srs-item-card-show)))
 
 (provide 'org-srs-item-card)

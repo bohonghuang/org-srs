@@ -29,7 +29,7 @@
 (defconst org-srs-table-starred-line-regexp (rx bol (* blank) "|" (* blank) (group "*") (* blank) "|"))
 
 (defun org-srs-table-goto-starred-line ()
-  (prog2 (goto-char (org-table-begin))
+  (prog2 (goto-char (1+ (org-table-begin)))
       (re-search-forward org-srs-table-starred-line-regexp (org-table-end))
     (goto-char (match-beginning 1))))
 
