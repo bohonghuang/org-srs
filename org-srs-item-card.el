@@ -7,9 +7,6 @@
   (ignore type)
   (apply #'org-srs-item-review 'card args))
 
-(defun org-srs-item-end-of-entry ()
-  (or (and (org-goto-first-child) (prog1 (backward-char) (point))) (org-end-of-subtree)))
-
 (defun org-srs-item-card-regions ()
   (let ((initalp t) (front nil) (back nil))
     (org-map-entries
@@ -18,9 +15,9 @@
          (let ((heading (cl-fifth (org-heading-components))))
            (cond
             ((string-equal-ignore-case heading "Front")
-             (setf front (cons (point) (org-srs-item-end-of-entry))))
+             (setf front (cons (point) (1- (org-entry-end-position)))))
             ((string-equal-ignore-case heading "Back")
-             (setf back (cons (point) (org-srs-item-end-of-entry))))))))
+             (setf back (cons (point) (1- (org-entry-end-position)))))))))
      nil 'tree)
     (let ((heading (save-excursion
                      (org-back-to-heading)
@@ -29,9 +26,7 @@
                     (save-excursion
                       (org-end-of-meta-data t)
                       (point))
-                    (save-excursion
-                      (org-srs-item-end-of-entry)
-                      (point)))))
+                    (1- (org-entry-end-position)))))
       (if front
           (if back
               (cl-values front back)
@@ -76,16 +71,13 @@
 
 (cl-defmethod org-srs-item-review ((type (eql 'card)) &rest args)
   (ignore type args)
-  (org-back-to-heading)
-  (org-narrow-to-subtree)
-  (add-hook 'org-srs-review-after-rate-hook
-            (letrec ((widen (lambda ()
-                              (remove-hook 'org-srs-review-after-rate-hook widen)
-                              (widen))))
-              widen)
-            -100)
+  (org-srs-item-narrow)
   (org-srs-item-card-hide)
-  (unwind-protect (read-key "Press any key to flip the card")
-    (org-srs-item-card-show)))
+  (org-srs-review-add-hook-once 'org-srs-item-after-confirm-hook #'org-srs-item-card-show)
+  (apply (org-srs-item-confirmation) type args))
+
+(cl-defmethod org-srs-item-new ((type (eql 'card)) &rest args)
+  (ignore type)
+  (apply #'org-srs-item-new nil args))
 
 (provide 'org-srs-item-card)

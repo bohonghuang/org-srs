@@ -8,6 +8,7 @@
 (require 'org-srs-log)
 (require 'org-srs-query)
 (require 'org-srs-time)
+(require 'org-srs-property)
 (require 'org-srs-item-card)
 (require 'org-srs-item-cloze)
 

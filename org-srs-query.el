@@ -61,14 +61,17 @@
    (org-srs-query-predicate-not (org-srs-query-predicate-new))
    (apply #'org-srs-query-predicate-updated args)))
 
+(cl-defun org-srs-query-region (predicate &optional (start (point-min)) (end (point-max)))
+  (save-excursion
+    (cl-loop initially (goto-char start)
+             while (re-search-forward org-srs-item-header-regexp end t)
+             when (save-match-data
+                    (re-search-forward org-table-line-regexp)
+                    (funcall predicate))
+             collect (cl-multiple-value-list (org-srs-item-from-match-data)))))
+
 (cl-defun org-srs-query-buffer (predicate &optional (buffer (current-buffer)))
   (with-current-buffer buffer
-    (save-excursion
-      (cl-loop initially (goto-char (point-min))
-               while (re-search-forward org-srs-item-header-regexp nil t)
-               when (save-match-data
-                      (re-search-forward org-table-line-regexp)
-                      (funcall predicate))
-               collect (cl-multiple-value-list (org-srs-item-from-match-data))))))
+    (org-srs-query-region predicate)))
 
 (provide 'org-srs-query)

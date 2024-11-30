@@ -2,10 +2,9 @@
 
 (require 'cl-generic)
 
-(defcustom org-srs-algorithm nil "")
+(require 'org-srs-property)
 
-(defun org-srs-algorithm ()
-  (or org-srs-algorithm))
+(org-srs-property-defcustom org-srs-algorithm nil "")
 
 (cl-defgeneric org-srs-algorithm-repeat (algorithm args))
 

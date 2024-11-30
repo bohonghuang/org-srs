@@ -61,7 +61,7 @@
     (org-back-to-heading)
     (let ((heading-start (point)))
       (org-srs-log-end-of-drawer)
-      (re-search-backward (rx bol (* blank) ":" (literal org-srs-log-drawer-name) ":" (* blank) eol)))))
+      (re-search-backward (rx bol (* blank) ":" (literal org-srs-log-drawer-name) ":" (* blank) eol) heading-start))))
 
 (cl-defun org-srs-log-hide-drawer (&optional (position (point)))
   (save-excursion
