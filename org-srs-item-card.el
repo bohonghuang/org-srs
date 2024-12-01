@@ -36,32 +36,34 @@
   (apply #'org-srs-item-review 'card args))
 
 (defun org-srs-item-card-regions ()
-  (let ((initalp t) (front nil) (back nil))
-    (org-map-entries
-     (lambda ()
-       (unless (cl-shiftf initalp nil)
-         (let ((heading (cl-fifth (org-heading-components))))
-           (cond
-            ((string-equal-ignore-case heading "Front")
-             (setf front (cons (point) (1- (org-entry-end-position)))))
-            ((string-equal-ignore-case heading "Back")
-             (setf back (cons (point) (1- (org-entry-end-position)))))))))
-     nil 'tree)
-    (let ((heading (save-excursion
-                     (org-back-to-heading)
-                     (cons (point) (pos-eol))))
-          (content (cons
-                    (save-excursion
-                      (org-end-of-meta-data t)
-                      (point))
-                    (1- (org-entry-end-position)))))
-      (if front
+  (cl-flet ((org-entry-end-position (&aux (position (org-entry-end-position)))
+              (if (= position (point-max)) (1+ position) position)))
+    (let ((initalp t) (front nil) (back nil))
+      (org-map-entries
+       (lambda ()
+         (unless (cl-shiftf initalp nil)
+           (let ((heading (cl-fifth (org-heading-components))))
+             (cond
+              ((string-equal-ignore-case heading "Front")
+               (setf front (cons (point) (1- (org-entry-end-position)))))
+              ((string-equal-ignore-case heading "Back")
+               (setf back (cons (point) (1- (org-entry-end-position)))))))))
+       nil 'tree)
+      (let ((heading (save-excursion
+                       (org-back-to-heading)
+                       (cons (point) (pos-eol))))
+            (content (cons
+                      (save-excursion
+                        (org-end-of-meta-data t)
+                        (point))
+                      (1- (org-entry-end-position)))))
+        (if front
+            (if back
+                (cl-values front back)
+              (error "Unable to determine the back of the card"))
           (if back
-              (cl-values front back)
-            (error "Unable to determine the back of the card"))
-        (if back
-            (cl-values content back)
-          (cl-values heading content))))))
+              (cl-values content back)
+            (cl-values heading content)))))))
 
 (defun org-srs-item-card-put-ellipsis-overlay (start end)
   (let ((overlay (make-overlay start end nil 'front-advance)))
