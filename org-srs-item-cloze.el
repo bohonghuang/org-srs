@@ -287,6 +287,7 @@ delete, or modify a cloze deletion."
                 (let ((content (match-string 2)))
                   (replace-match (save-match-data (org-srs-item-princ-to-string (funcall (org-srs-item-cloze-identifier) content))) t t nil 1)))))
     (save-excursion
+      (org-id-get-create)
       (if (<= arg 1)
           (if-let ((bounds (org-srs-item-cloze-bounds)))
               (progn (update-cloze bounds) (org-srs-item-cloze-update-entry t))
