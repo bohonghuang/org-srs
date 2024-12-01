@@ -175,6 +175,7 @@
    (cl-destructuring-bind (start . end) (bounds-of-thing-at-point 'word)
      (cl-call-next-method 'paragraph (cl-second (org-srs-item-cloze-region-element start end (list type props)))))))
 
+;;;###autoload
 (defun org-srs-item-cloze-dwim ()
   "Cloze the element at point.
 
@@ -222,6 +223,7 @@ table's fields."
    (cl-destructuring-bind (start . end) (org-srs-item-cloze-bounds)
      (cl-call-next-method 'paragraph (cl-second (org-srs-item-cloze-region-element start end (list type props)))))))
 
+;;;###autoload
 (defun org-srs-item-uncloze-dwim ()
   "Uncloze the element at point. Also see `org-srs-item-cloze-dwim'."
   (interactive)
@@ -262,6 +264,7 @@ table's fields."
                  else
                  do (org-srs-item-new cloze-item))))))
 
+;;;###autoload
 (defun org-srs-item-cloze-update (arg)
   "Update the cloze items in the current entry.
 
@@ -275,6 +278,7 @@ cloze deletions in the current entry.
 It's recommended to execute this command every time you add,
 delete, or modify a cloze deletion."
   (interactive "p")
+  (require 'org-srs)
   (cl-flet ((update-cloze (&optional (bounds (org-srs-item-cloze-bounds)))
               (cl-destructuring-bind (start . end) bounds
                 (goto-char start)
