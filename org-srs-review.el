@@ -40,8 +40,6 @@
 (defvar org-srs-review-after-rate-hook nil)
 
 (defun org-srs-review-rate (rating &optional position)
-  "Rate the item at POSITION as RATING."
-  (interactive (list (read (completing-read "Rating: " org-srs-review-ratings nil t))))
   (save-excursion
     (if-let ((position (or position org-srs-review-item-marker)))
         (goto-char position)
@@ -62,8 +60,13 @@
                       collect `(defun ,(intern (format "%s%s" 'org-srs-review-rate- rating-name)) ()
                                  ,(format "Rate the item being reviewed as %s." rating-name)
                                  (interactive)
+                                 (require 'org-srs)
                                  (org-srs-review-rate ,rating)))))
 
+;;;###autoload (autoload 'org-srs-review-rate-easy "org-srs-review" "Rate the item being reviewed as easy." t)
+;;;###autoload (autoload 'org-srs-review-rate-good "org-srs-review" "Rate the item being reviewed as good." t)
+;;;###autoload (autoload 'org-srs-review-rate-hard "org-srs-review" "Rate the item being reviewed as hard." t)
+;;;###autoload (autoload 'org-srs-review-rate-again "org-srs-review" "Rate the item being reviewed as again." t)
 (org-srs-review-define-rating-commands)
 
 (org-srs-property-defcustom org-srs-review-new-items-per-day 20
@@ -126,9 +129,11 @@
 
 (defalias 'org-srs-review-add-hook-once 'org-srs-item-add-hook-once)
 
+;;;###autoload
 (defun org-srs-review-start (&rest args)
   "Start a review session with ARGS."
   (interactive)
+  (require 'org-srs)
   (if-let ((item-and-id (cl-first (org-srs-review-pending-items))))
       (cl-destructuring-bind (item _id) item-and-id
         (apply #'org-srs-item-goto item-and-id)
@@ -142,6 +147,7 @@
          100))
     (message "Review done")))
 
+;;;###autoload
 (defun org-srs-review-quit ()
   "Quit the current review session."
   (interactive)

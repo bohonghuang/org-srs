@@ -122,9 +122,11 @@
     (cl-call-next-method)
     (org-srs-log-hide-drawer)))
 
+;;;###autoload
 (defun org-srs-item-create ()
   "Create a review item."
   (interactive)
+  (require 'org-srs)
   (org-srs-item-new-interactively (read (completing-read "Item type: " (org-srs-item-types) nil t))))
 
 (defun org-srs-item-add-hook-once (hook function &rest args)
