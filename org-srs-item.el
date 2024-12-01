@@ -110,6 +110,7 @@
 (cl-defgeneric org-srs-item-new (type &rest args)
   (let ((item (cons type args)))
     (cl-assert (not (org-srs-item-exists-p item)) nil "Item %s already exists" item)
+    (cl-assert (org-id-get))
     (org-srs-log-end-of-drawer)
     (org-open-line 1)
     (apply #'org-srs-item-insert type args)))
@@ -124,10 +125,12 @@
 
 ;;;###autoload
 (defun org-srs-item-create ()
-  "Create a review item."
+  "Create a review item in the current entry."
   (interactive)
   (require 'org-srs)
-  (org-srs-item-new-interactively (read (completing-read "Item type: " (org-srs-item-types) nil t))))
+  (org-srs-item-new-interactively
+   (prog1 (read (completing-read "Item type: " (org-srs-item-types) nil t))
+     (org-id-get-create))))
 
 (defun org-srs-item-add-hook-once (hook function &rest args)
   (apply
