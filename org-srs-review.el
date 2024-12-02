@@ -151,8 +151,14 @@
 (defun org-srs-review-quit ()
   "Quit the current review session."
   (interactive)
-  (setf org-srs-review-after-rate-hook (nbutlast org-srs-review-after-rate-hook))
-  (run-hooks 'org-srs-review-after-rate-hook))
+  (cl-assert (local-variable-p 'org-srs-review-after-rate-hook))
+  (cl-assert (> (length org-srs-review-after-rate-hook) 1))
+  (when-let ((position (cl-position t org-srs-review-after-rate-hook :from-end t :test-not #'eq)))
+    (if (cl-plusp position)
+        (pop (cdr (nthcdr (1- position) org-srs-review-after-rate-hook)))
+      (pop org-srs-review-after-rate-hook)))
+  (run-hooks 'org-srs-review-after-rate-hook)
+  (kill-local-variable 'org-srs-review-after-rate-hook))
 
 (provide 'org-srs-review)
 ;;; org-srs-review.el ends here
