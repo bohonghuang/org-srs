@@ -105,6 +105,15 @@
    text
    (propertize "]" 'face 'bold)))
 
+(defun org-srs-item-cloze-recenter-horizontally ()
+  (let ((offset (- (current-column) (truncate (window-width) 2))))
+    (set-window-hscroll (selected-window) (max offset 0))))
+
+(org-srs-property-defcustom org-srs-item-cloze-centered-in-review-p nil
+  "Non-nil means the cloze deletion in review will be centered in selected window."
+  :group 'org-srs
+  :type 'boolean)
+
 (cl-defmethod org-srs-item-review ((type (eql 'cloze)) &rest args)
   (cl-loop with visibility = (org-srs-item-cloze-visibility) and current
            with (cloze-id) = args
@@ -123,8 +132,12 @@
            finally
            (org-srs-item-add-hook-once
             'org-srs-item-after-confirm-hook
-            (cl-destructuring-bind (overlay _id _start _end text &optional _hint) current
+            (cl-destructuring-bind (overlay _id start _end text &optional _hint) current
               (cl-assert (overlayp overlay))
+              (when (org-srs-item-cloze-centered-in-review-p)
+                (goto-char start)
+                (recenter)
+                (org-srs-item-cloze-recenter-horizontally))
               (lambda ()
                 (setf (org-srs-item-cloze-overlay-text overlay) (org-srs-item-cloze-answer text)))))
            (org-srs-item-add-hook-once 'org-srs-review-after-rate-hook #'org-srs-item-cloze-remove-overlays)
