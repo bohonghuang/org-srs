@@ -132,14 +132,14 @@
    (prog1 (read (completing-read "Item type: " (org-srs-item-types) nil t))
      (org-id-get-create))))
 
-(defun org-srs-item-add-hook-once (hook function &rest args)
-  (apply
-   #'add-hook hook
+(defun org-srs-item-add-hook-once (hook function &optional depth)
+  (add-hook
+   hook
    (letrec ((hook-function (lambda ()
                              (remove-hook hook hook-function)
                              (funcall function))))
      hook-function)
-   args))
+   depth t))
 
 (defun org-srs-item-narrow ()
   (org-back-to-heading)
@@ -149,7 +149,7 @@
 (defvar org-srs-item-after-confirm-hook nil)
 
 (defun org-srs-item-reset-after-confirm-hook ()
-  (setf org-srs-item-after-confirm-hook nil))
+  (kill-local-variable 'org-srs-item-after-confirm-hook))
 
 (add-hook 'org-srs-review-after-rate-hook #'org-srs-item-reset-after-confirm-hook)
 
