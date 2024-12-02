@@ -151,7 +151,8 @@
   "Quit the current review session."
   (interactive)
   (setf org-srs-review-after-rate-hook (nbutlast org-srs-review-after-rate-hook))
-  (run-hooks 'org-srs-review-after-rate-hook))
+  (run-hooks 'org-srs-review-after-rate-hook)
+  (kill-local-variable 'org-srs-review-after-rate-hook))
 
 (provide 'org-srs-review)
 ;;; org-srs-review.el ends here
