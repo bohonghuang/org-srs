@@ -34,9 +34,9 @@
 (require 'org-srs-time)
 
 (cl-defmethod org-srs-algorithm-ensure ((_type (eql 'fsrs)) &rest args)
-  (apply #'make-fsrs args))
+  (apply #'make-fsrs-scheduler args))
 
-(cl-defmethod org-srs-algorithm-repeat ((_fsrs fsrs) (_args null))
+(cl-defmethod org-srs-algorithm-repeat ((_fsrs fsrs-scheduler) (_args null))
   (let ((card (make-fsrs-card)))
     `((stability . ,(fsrs-card-stability card))
       (difficulty . ,(fsrs-card-difficulty card))
@@ -44,7 +44,7 @@
 
 (defconst org-srs-algorithm-fsrs-card-slots (mapcar #'cl--slot-descriptor-name (cl--class-slots (cl-find-class 'fsrs-card))))
 
-(cl-defmethod org-srs-algorithm-repeat ((fsrs fsrs) (args list))
+(cl-defmethod org-srs-algorithm-repeat ((fsrs fsrs-scheduler) (args list))
   (let ((card (make-fsrs-card))
         (rating (alist-get 'rating args))
         (timestamp (alist-get 'timestamp args (org-srs-timestamp-now))))
@@ -55,7 +55,7 @@
              for (key . value) = cons
              when cons
              do (setf (eieio-oref card key) value))
-    (cl-loop with card = (fsrs-scheduling-info-card (cl-getf (fsrs-repeat fsrs card timestamp) rating))
+    (cl-loop with card = (cl-nth-value 0 (fsrs-scheduler-review-card fsrs card rating timestamp))
              for slot in org-srs-algorithm-fsrs-card-slots
              collect (cons (cl-case slot (due 'timestamp) (t slot)) (eieio-oref card slot)) into slots
              finally (cl-return (nconc slots args)))))
