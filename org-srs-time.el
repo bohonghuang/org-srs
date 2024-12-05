@@ -55,6 +55,9 @@
    (+ (time-to-seconds (org-srs-timestamp-time time))
       (* amount (cl-ecase unit (:sec 1) (:minute 60) (:hour 3600) (:day 86400))))))
 
+(defun org-srs-timestamp-min (&rest args)
+  (cl-reduce (lambda (time-a time-b) (if (cl-plusp (org-srs-timestamp-difference time-a time-b)) time-b time-a)) args))
+
 (defconst org-srs-timestamp-regexp (rx (= 4 digit) "-" (= 2 digit) "-" (= 2 digit) "T" (= 2 digit) ":" (= 2 digit) ":" (= 2 digit) "Z"))
 
 (provide 'org-srs-time)
