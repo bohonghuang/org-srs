@@ -32,6 +32,7 @@
 
 (require 'org-srs-algorithm)
 (require 'org-srs-time)
+(require 'org-srs-step)
 
 (cl-defmethod org-srs-algorithm-ensure ((_type (eql 'fsrs)) &rest args)
   (apply #'make-fsrs-scheduler args))
@@ -57,7 +58,10 @@
              do (setf (eieio-oref card key) value))
     (cl-loop with card = (cl-nth-value 0 (fsrs-scheduler-review-card fsrs card rating timestamp))
              for slot in org-srs-algorithm-fsrs-card-slots
-             collect (cons (cl-case slot (due 'timestamp) (t slot)) (eieio-oref card slot)) into slots
+             collect (cons
+                      (cl-case slot (due 'timestamp) (t slot))
+                      (cl-case slot (state (or (org-srs-step-state) (fsrs-card-state card))) (t (eieio-oref card slot))))
+             into slots
              finally (cl-return (nconc slots args)))))
 
 (provide 'org-srs-algorithm-fsrs)
