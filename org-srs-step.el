@@ -45,16 +45,21 @@
 
 (defun org-srs-step-learning-relearning ()
   (save-excursion
-    (cl-loop with learning-step = 1 and relearning-step = 0
+    (cl-loop with step = 1 and learning-step = 0 and relearning-step = 0
              for field = (org-srs-table-field 'rating)
              for rating = (if (string-empty-p field)
-                              (cl-return (cl-values learning-step relearning-step))
+                              (cl-return (cl-values (max step learning-step) relearning-step))
                             (read field))
              do (cl-ecase rating
-                  (:easy (cl-return (cl-values most-positive-fixnum most-positive-fixnum)))
-                  (:good (setf learning-step (truncate (1+ learning-step))))
-                  (:hard (when (= (truncate learning-step) 1) (setf learning-step 1.5)))
-                  (:again (when (zerop relearning-step) (setf relearning-step learning-step))))
+                  (:easy
+                   (cl-return (cl-values most-positive-fixnum most-positive-fixnum)))
+                  (:good
+                   (setf step (truncate (1+ step))))
+                  (:hard
+                   (when (= (truncate step) 1) (setf step 1.5)))
+                  (:again
+                   (when (zerop relearning-step) (setf relearning-step step))
+                   (setf learning-step (max learning-step (cl-shiftf step 1)))))
              until (cl-minusp (forward-line -1))
              until (org-at-table-hline-p))))
 
@@ -65,9 +70,15 @@
       (cl-multiple-value-bind (learning-step relearning-step) (org-srs-step-learning-relearning)
         (cl-multiple-value-bind (steps step)
             (let ((learning-steps (org-srs-step-learning-steps)))
-              (if (and (< 0 relearning-step learning-step) (< (length learning-steps) learning-step))
-                  (cl-values (org-srs-step-relearning-steps) relearning-step)
-                (cl-values learning-steps learning-step)))
+              (cond
+               ((zerop relearning-step)
+                (cl-values learning-steps learning-step))
+               ((< (length learning-steps) learning-step)
+                (let ((relearning-steps (org-srs-step-relearning-steps)))
+                  (cl-assert (<= (length relearning-steps) (length learning-steps)))
+                  (cl-values relearning-steps relearning-step)))
+               (t
+                (cl-values learning-steps relearning-step))))
           (cl-assert (cl-plusp step))
           (cl-multiple-value-bind (step frac) (cl-truncate step)
             (let* ((index (1- step))
