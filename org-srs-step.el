@@ -45,16 +45,21 @@
 
 (defun org-srs-step-list ()
   (save-excursion
-    (cl-loop with step = 1
+    (cl-loop with step-max = (1- most-positive-fixnum) and steps = nil
+             initially (setf step 1)
              for field = (org-srs-table-field 'rating)
              for rating = (if (string-empty-p field) :again (read field))
-             if (eq rating :easy) return nil
-             else if (eq rating :good) do (setf step (truncate (1+ step)))
-             else if (eq rating :hard) when (= (truncate step) 1) do (setf step 1.5) end
-             else if (eq rating :again) collect (cl-shiftf step 1)
-             else do (cl-assert nil)
+             for step = (cl-ecase rating
+                          (:easy step-max)
+                          (:good (min (truncate (1+ step)) step-max))
+                          (:hard (if (= (truncate step) 1) 1.5 step))
+                          (:again (setf steps (list step)) 1))
+             nconc (cl-shiftf steps nil)
              until (cl-minusp (forward-line -1))
              until (org-at-table-hline-p))))
+
+(cl-defun org-srs-step-learned-p (&optional (learning-steps (org-srs-step-learning-steps)) (step-list (org-srs-step-list)))
+  (cl-some (apply-partially #'< (length learning-steps)) (cl-rest step-list)))
 
 (defun org-srs-step-steps ()
   (let ((step-list (org-srs-step-list))
@@ -62,10 +67,25 @@
     (cl-assert (cl-plusp (length step-list)))
     (cl-values
      (cl-first step-list)
-     (cond
-      ((= (length step-list) 1) learning-steps)
-      ((cl-some (apply-partially #'< (length learning-steps)) (cl-rest step-list)) (org-srs-step-relearning-steps))
-      (t learning-steps)))))
+     (if (cl-some (apply-partially #'< (length learning-steps)) (cl-rest step-list))
+         (org-srs-step-relearning-steps)
+       learning-steps))))
+
+(defun org-srs-step-state ()
+  (let ((learning-steps (org-srs-step-learning-steps))
+        (relearning-steps (org-srs-step-relearning-steps)))
+    (org-srs-property-let ((org-srs-step-learning-steps learning-steps)
+                           (org-srs-step-relearning-steps relearning-steps))
+      (save-excursion
+        (cl-loop while (org-at-table-p)
+                 while (string-empty-p (org-srs-table-field 'rating))
+                 until (cl-minusp (forward-line -1))
+                 until (org-at-table-hline-p))
+        (cl-multiple-value-bind (step steps) (org-srs-step-steps)
+          (unless (> step (length steps))
+            (if (eq steps learning-steps) :learning
+              (cl-assert (eq steps relearning-steps))
+              :relearning)))))))
 
 (cl-defun org-srs-step-due-timestamp ()
   (save-excursion

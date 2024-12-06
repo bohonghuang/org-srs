@@ -64,6 +64,7 @@
     (setf args (nconc (org-srs-table-current-line) args)))
   (org-srs-table-goto-starred-line)
   (setf (org-srs-table-field 'timestamp) (org-srs-timestamp-now)
+        (org-srs-table-field 'rating) (prin1-to-string rating t)
         args (nconc (org-srs-table-current-line) args))
   (cl-loop initially (setf args (org-srs-algorithm-repeat (org-srs-algorithm-current) (cl-acons 'rating rating args)))
            for (name . nil) in (org-srs-table-column-name-number-alist)
