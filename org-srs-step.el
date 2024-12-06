@@ -43,60 +43,53 @@
   :group 'org-srs
   :type 'sexp)
 
-(defun org-srs-step-learning-relearning ()
+(defun org-srs-step-list ()
   (save-excursion
-    (cl-loop with step = 1 and learning-step = 0 and relearning-step = 0
+    (cl-loop with step = 1
              for field = (org-srs-table-field 'rating)
-             for rating = (if (string-empty-p field)
-                              (cl-return (cl-values (max step learning-step) relearning-step))
-                            (read field))
-             do (cl-ecase rating
-                  (:easy
-                   (cl-return (cl-values most-positive-fixnum most-positive-fixnum)))
-                  (:good
-                   (setf step (truncate (1+ step))))
-                  (:hard
-                   (when (= (truncate step) 1) (setf step 1.5)))
-                  (:again
-                   (when (zerop relearning-step) (setf relearning-step step))
-                   (setf learning-step (max learning-step (cl-shiftf step 1)))))
+             for rating = (if (string-empty-p field) :again (read field))
+             if (eq rating :easy) return nil
+             else if (eq rating :good) do (setf step (truncate (1+ step)))
+             else if (eq rating :hard) when (= (truncate step) 1) do (setf step 1.5) end
+             else if (eq rating :again) collect (cl-shiftf step 1)
+             else do (cl-assert nil)
              until (cl-minusp (forward-line -1))
              until (org-at-table-hline-p))))
+
+(defun org-srs-step-steps ()
+  (let ((step-list (org-srs-step-list))
+        (learning-steps (org-srs-step-learning-steps)))
+    (cl-assert (cl-plusp (length step-list)))
+    (cl-values
+     (cl-first step-list)
+     (cond
+      ((= (length step-list) 1) learning-steps)
+      ((cl-some (apply-partially #'< (length learning-steps)) (cl-rest step-list)) (org-srs-step-relearning-steps))
+      (t learning-steps)))))
 
 (cl-defun org-srs-step-due-timestamp ()
   (save-excursion
     (let ((timestamp-scheduled (org-srs-table-field 'timestamp))
           (timestamp-review (progn (forward-line -1) (org-srs-table-field 'timestamp))))
-      (cl-multiple-value-bind (learning-step relearning-step) (org-srs-step-learning-relearning)
-        (cl-multiple-value-bind (steps step)
-            (let ((learning-steps (org-srs-step-learning-steps)))
-              (cond
-               ((zerop relearning-step)
-                (cl-values learning-steps learning-step))
-               ((< (length learning-steps) learning-step)
-                (let ((relearning-steps (org-srs-step-relearning-steps)))
-                  (cl-assert (<= (length relearning-steps) (length learning-steps)))
-                  (cl-values relearning-steps relearning-step)))
-               (t
-                (cl-values learning-steps relearning-step))))
-          (cl-assert (cl-plusp step))
-          (cl-multiple-value-bind (step frac) (cl-truncate step)
-            (let* ((index (1- step))
-                   (index-next (if (< (abs frac) 1e-3) index (1+ index))))
-              (unless (< index (length steps))
-                (cl-return-from org-srs-step-due-timestamp timestamp-scheduled))
-              (if (< index-next (length steps))
-                  (when-let ((step (nth index steps))
-                             (step-next (nth index-next steps)))
-                    (cl-assert (= (length step) (length step-next) 2))
-                    (let ((step (cons (* (car step) frac) (cdr step)))
-                          (step-next (cons (* (car step-next) (- 1.0 frac)) (cdr step))))
-                      (apply #'org-srs-timestamp+ (apply #'org-srs-timestamp+ timestamp-review step) step-next)))
-                (let* ((step-last (car (last steps)))
-                       (step-next (cons (* 1.5 (car step-last)) (cdr step-last))))
-                  (org-srs-timestamp-min
-                   (apply #'org-srs-timestamp+ timestamp-review step-next)
-                   (org-srs-timestamp+ (apply #'org-srs-timestamp+ timestamp-review step-last) 1 :day)))))))))))
+      (cl-multiple-value-bind (step steps) (org-srs-step-steps)
+        (cl-assert (cl-plusp step))
+        (cl-multiple-value-bind (step frac) (cl-truncate step)
+          (let* ((index (1- step))
+                 (index-next (if (< (abs frac) 1e-3) index (1+ index))))
+            (unless (< index (length steps))
+              (cl-return-from org-srs-step-due-timestamp timestamp-scheduled))
+            (if (< index-next (length steps))
+                (when-let ((step (nth index steps))
+                           (step-next (nth index-next steps)))
+                  (cl-assert (= (length step) (length step-next) 2))
+                  (let ((step (cons (* (car step) frac) (cdr step)))
+                        (step-next (cons (* (car step-next) (- 1.0 frac)) (cdr step))))
+                    (apply #'org-srs-timestamp+ (apply #'org-srs-timestamp+ timestamp-review step) step-next)))
+              (let* ((step-last (car (last steps)))
+                     (step-next (cons (* 1.5 (car step-last)) (cdr step-last))))
+                (org-srs-timestamp-min
+                 (apply #'org-srs-timestamp+ timestamp-review step-next)
+                 (org-srs-timestamp+ (apply #'org-srs-timestamp+ timestamp-review step-last) 1 :day))))))))))
 
 (defun org-srs-step-update-due-timestamp ()
   (save-excursion
