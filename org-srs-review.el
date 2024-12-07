@@ -84,6 +84,11 @@
   :group 'org-srs
   :type 'boolean)
 
+(org-srs-property-defcustom org-srs-review-learn-ahead-limit '(20 :minute)
+  "The maximum advance time for due items when no items are available for review."
+  :group 'org-srs
+  :type 'sexp)
+
 (cl-defun org-srs-review-pending-items (&optional (source (current-buffer)))
   (cl-etypecase source
     (buffer
@@ -93,35 +98,34 @@
                                (org-srs-query-predicate-due)
                                (org-srs-query-predicate-not (org-srs-query-predicate-reviewed))
                                (org-srs-query-predicate-not (org-srs-query-predicate-new))))
-             (items-reviewed (org-srs-query-buffer (org-srs-query-predicate-reviewed)))
-             (predicate-null (org-srs-query-predicate-or))
-             (predicate-due-new (org-srs-query-predicate-and
-                                 (org-srs-query-predicate-due)
-                                 (org-srs-query-predicate-new)))
-             (predicate-due-nonnew (org-srs-query-predicate-and
-                                    (org-srs-query-predicate-due)
-                                    (org-srs-query-predicate-not
-                                     (org-srs-query-predicate-new))))
-             (predicate-due-today (org-srs-query-predicate-due))
-             (predicate-reviewed-due-today (org-srs-query-predicate-and
-                                            (org-srs-query-predicate-reviewed)
-                                            (org-srs-query-predicate-due (org-srs-time-tomorrow)))))
-         (or
-          (org-srs-query-buffer
-           (if (< (length items-reviewed) (org-srs-review-max-reviews-per-day))
-               (if (< (length items-learned) (org-srs-review-new-items-per-day))
-                   (if (or (org-srs-review-new-items-ignore-review-limit-p)
-                           (< (+ (length items-reviewed) (length items-to-review))
-                              (org-srs-review-max-reviews-per-day)))
-                       predicate-due-today
-                     predicate-due-nonnew)
-                 predicate-due-nonnew)
-             (if (< (length items-learned) (org-srs-review-new-items-per-day))
-                 (if (org-srs-review-new-items-ignore-review-limit-p)
-                     predicate-due-new
-                   predicate-null)
-               predicate-null)))
-          (org-srs-query-buffer predicate-reviewed-due-today)))))
+             (items-reviewed (org-srs-query-buffer (org-srs-query-predicate-reviewed))))
+         (cl-flet ((predicate-pending (&optional (now (current-time)))
+                     (let* ((predicate-null (org-srs-query-predicate-or))
+                            (predicate-due-now (org-srs-query-predicate-due now))
+                            (predicate-due-new (org-srs-query-predicate-and
+                                                predicate-due-now
+                                                (org-srs-query-predicate-new)))
+                            (predicate-due-nonnew (org-srs-query-predicate-and
+                                                   predicate-due-now
+                                                   (org-srs-query-predicate-not
+                                                    (org-srs-query-predicate-new)))))
+                       (if (< (length items-reviewed) (org-srs-review-max-reviews-per-day))
+                           (if (< (length items-learned) (org-srs-review-new-items-per-day))
+                               (if (or (org-srs-review-new-items-ignore-review-limit-p)
+                                       (< (+ (length items-reviewed) (length items-to-review))
+                                          (org-srs-review-max-reviews-per-day)))
+                                   predicate-due-now
+                                 predicate-due-nonnew)
+                             predicate-due-nonnew)
+                         (if (< (length items-learned) (org-srs-review-new-items-per-day))
+                             (if (org-srs-review-new-items-ignore-review-limit-p)
+                                 predicate-due-new
+                               predicate-null)
+                           predicate-null)))))
+           (or (org-srs-query-buffer (predicate-pending))
+               (org-srs-query-buffer (predicate-pending
+                                      (apply #'org-srs-time+ (current-time)
+                                               (org-srs-review-learn-ahead-limit)))))))))
     (string
      (cl-assert (file-exists-p source))
      (cl-assert (not (file-directory-p source)))
