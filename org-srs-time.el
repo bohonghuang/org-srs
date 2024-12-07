@@ -28,16 +28,31 @@
 (require 'rx)
 (require 'parse-time)
 
-(cl-defun org-srs-time-truncate-hms (time &optional (d 0))
-  (let ((time (cl-fill (decode-time time) 0 :start 0 :end 3)))
-    (cl-incf (cl-fourth time) d)
-    (encode-time time)))
+(require 'org-srs-property)
 
-(cl-defun org-srs-time-today (&optional (offset 0))
-  (org-srs-time-truncate-hms (current-time) offset))
+(defun org-srs-time-desc-seconds (desc)
+  (cl-loop for (amount unit) on desc by #'cddr
+           sum (* amount (cl-ecase unit (:sec 1) (:minute 60) (:hour 3600) (:day 86400)))))
+
+(defun org-srs-time+ (time &rest desc)
+  (time-add time (seconds-to-time (org-srs-time-desc-seconds desc))))
+
+(cl-defun org-srs-time-truncate-hms (time)
+  (encode-time (cl-fill (decode-time time) 0 :start 0 :end 3)))
+
+(org-srs-property-defcustom org-srs-time-start-of-next-day '(4 :hour)
+  "The offset used to calculate the start time of the next day."
+  :group 'org-srs
+  :type 'sexp)
+
+(cl-defun org-srs-time-today ()
+  (apply
+   #'org-srs-time+
+   (org-srs-time-truncate-hms (current-time))
+   (org-srs-time-start-of-next-day)))
 
 (defun org-srs-time-tomorrow ()
-  (org-srs-time-today 1))
+  (org-srs-time+ (org-srs-time-today) 1 :day))
 
 (cl-deftype org-srs-timestamp () 'string)
 
@@ -46,14 +61,16 @@
 (defun org-srs-timestamp-now (&optional time)
   (format-time-string "%FT%TZ" time "UTC0"))
 
+(defalias 'org-srs-timestamp 'org-srs-timestamp-now)
+
 (defun org-srs-timestamp-difference (time-a time-b)
   (- (time-to-seconds (org-srs-timestamp-time time-a))
      (time-to-seconds (org-srs-timestamp-time time-b))))
 
-(defun org-srs-timestamp+ (time amount unit)
+(defun org-srs-timestamp+ (time &rest desc)
   (org-srs-timestamp-now
    (+ (time-to-seconds (org-srs-timestamp-time time))
-      (* amount (cl-ecase unit (:sec 1) (:minute 60) (:hour 3600) (:day 86400))))))
+      (org-srs-time-desc-seconds desc))))
 
 (defun org-srs-timestamp-min (&rest args)
   (cl-reduce (lambda (time-a time-b) (if (cl-plusp (org-srs-timestamp-difference time-a time-b)) time-b time-a)) args))
