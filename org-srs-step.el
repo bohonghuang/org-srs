@@ -111,13 +111,19 @@
                  (apply #'org-srs-timestamp+ timestamp-review step-next)
                  (org-srs-timestamp+ (apply #'org-srs-timestamp+ timestamp-review step-last) 1 :day))))))))))
 
+(defun org-srs-step-update-due-timestamp-1 ()
+  (setf (org-srs-table-field 'timestamp) (org-srs-step-due-timestamp))
+  (org-table-align))
+
 (defun org-srs-step-update-due-timestamp ()
-  (save-excursion
-    (goto-char org-srs-review-item-marker)
-    (org-srs-table-goto-starred-line)
-    (setf (org-srs-table-field 'timestamp) (org-srs-step-due-timestamp))
-    (org-table-align)
-    (org-srs-log-hide-drawer)))
+  (if (boundp 'org-srs-review-rating)
+      (when (symbol-value 'org-srs-review-rating)
+        (save-excursion
+          (goto-char org-srs-review-item-marker)
+          (org-srs-table-goto-starred-line)
+          (org-srs-step-update-due-timestamp-1)
+          (org-srs-log-hide-drawer)))
+    (org-srs-step-update-due-timestamp-1)))
 
 (add-hook 'org-srs-review-after-rate-hook #'org-srs-step-update-due-timestamp 50)
 
