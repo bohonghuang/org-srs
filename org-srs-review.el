@@ -39,6 +39,8 @@
 
 (defvar org-srs-review-after-rate-hook nil)
 
+(defvar org-srs-review-rating)
+
 (cl-defun org-srs-review-rate (rating &optional (position org-srs-review-item-marker))
   (save-excursion
     (if position (goto-char position) (cl-multiple-value-call #'org-srs-item-goto (org-srs-item-at-point)))
@@ -49,7 +51,8 @@
       (org-srs-time-tomorrow)))
     (org-srs-item-repeat (cl-nth-value 0 (org-srs-item-at-point)) rating)
     (org-srs-log-hide-drawer))
-  (run-hooks 'org-srs-review-after-rate-hook))
+  (let ((org-srs-review-rating rating))
+    (run-hooks 'org-srs-review-after-rate-hook)))
 
 (defmacro org-srs-review-define-rating-commands ()
   `(progn . ,(cl-loop for rating in org-srs-review-ratings
@@ -154,7 +157,8 @@
     (if (cl-plusp position)
         (pop (cdr (nthcdr (1- position) org-srs-review-after-rate-hook)))
       (pop org-srs-review-after-rate-hook)))
-  (run-hooks 'org-srs-review-after-rate-hook)
+  (let ((org-srs-review-rating nil))
+    (run-hooks 'org-srs-review-after-rate-hook))
   (kill-local-variable 'org-srs-review-after-rate-hook))
 
 (provide 'org-srs-review)
