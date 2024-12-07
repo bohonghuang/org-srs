@@ -89,7 +89,7 @@
   :group 'org-srs
   :type 'sexp)
 
-(cl-defun org-srs-review-pending-items (&optional (source (current-buffer)))
+(cl-defun org-srs-review-due-items (&optional (source (current-buffer)))
   (cl-etypecase source
     (buffer
      (with-current-buffer source
@@ -129,16 +129,62 @@
     (string
      (cl-assert (file-exists-p source))
      (cl-assert (not (file-directory-p source)))
-     (org-srs-review-pending-items (find-file-noselect source)))))
+     (org-srs-review-due-items (find-file-noselect source)))))
 
 (defalias 'org-srs-review-add-hook-once 'org-srs-item-add-hook-once)
+
+(org-srs-property-defcustom org-srs-review-order-new-review 'review-first
+  "The relative display order between new items and review items."
+  :group 'org-srs
+  :type '(choice
+          (const :tag "Random" random)
+          (const :tag "New first" new-first)
+          (const :tag "Review first" review-first)))
+
+(org-srs-property-defcustom org-srs-review-order-new 'position
+  "The display order of new items."
+  :group 'org-srs
+  :type '(choice
+          (const :tag "Position" position)
+          (const :tag "Random" random)))
+
+(org-srs-property-defcustom org-srs-review-order-review 'random
+  "The display order of review items."
+  :group 'org-srs
+  :type '(choice
+          (const :tag "Position" position)
+          (const :tag "Random" random)))
+
+(defun org-srs-review-next-due-item ()
+  (save-excursion
+    (cl-flet ((random-elt (sequence)
+                (when sequence
+                  (elt sequence (random (length sequence))))))
+      (cl-multiple-value-bind (new-items review-items)
+          (cl-loop with items = (org-srs-review-due-items)
+                   with predicate-new = (org-srs-query-predicate-new)
+                   for item in items
+                   do (apply #'org-srs-item-goto item)
+                   if (funcall predicate-new) collect item into new-items
+                   else collect item into review-items
+                   finally (cl-return (cl-values new-items review-items)))
+        (let ((new-item (cl-ecase (org-srs-review-order-new)
+                          (position (cl-first new-items))
+                          (random (random-elt new-items))))
+              (review-item (cl-ecase (org-srs-review-order-review)
+                             (position (cl-first review-items))
+                             (random (random-elt review-items)))))
+          (cl-ecase (org-srs-review-order-new-review)
+            (new-first (or new-item review-item))
+            (review-first (or review-item new-item))
+            (random (random-elt (cl-delete-if #'null (list new-item review-item))))))))))
 
 ;;;###autoload
 (defun org-srs-review-start (&rest args)
   "Start a review session with ARGS."
   (interactive)
   (require 'org-srs)
-  (if-let ((item-and-id (cl-first (org-srs-review-pending-items))))
+  (if-let ((item-and-id (org-srs-review-next-due-item)))
       (cl-destructuring-bind (item _id) item-and-id
         (apply #'org-srs-item-goto item-and-id)
         (setf org-srs-review-item-marker (point-marker))
