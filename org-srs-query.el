@@ -50,8 +50,8 @@
 
 (cl-defun org-srs-query-predicate-updated
     (&optional
-     (from (org-srs-time-truncate-hms (current-time)) fromp)
-     (to (unless fromp (org-srs-time-truncate-hms (current-time) 1))))
+     (from (org-srs-time-today) fromp)
+     (to (unless fromp (org-srs-time-tomorrow))))
   (lambda ()
     (save-excursion
       (when (re-search-forward org-srs-log-latest-timestamp-regexp (org-table-end))
@@ -68,8 +68,8 @@
 
 (cl-defun org-srs-query-predicate-learned
     (&optional
-     (from (org-srs-time-truncate-hms (current-time)) fromp)
-     (to (unless fromp (org-srs-time-truncate-hms (current-time) 1))))
+     (from (org-srs-time-today) fromp)
+     (to (unless fromp (org-srs-time-tomorrow))))
   (lambda ()
     (save-excursion
       (when-let ((time (cl-loop with end = (org-table-end)
