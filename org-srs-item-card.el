@@ -71,7 +71,7 @@
     (overlay-put overlay 'display "...")))
 
 (cl-defun org-srs-item-card-remove-ellipsis-overlays (&optional (start (point-min)) (end (point-max)))
-  (remove-overlays start end 'category 'org-srs-item-card))
+  (remove-overlays start (1+ end) 'category 'org-srs-item-card))
 
 (defun org-srs-item-card-show ()
   (org-fold-show-subtree)
