@@ -128,6 +128,8 @@
   "Create a review item in the current entry."
   (interactive)
   (require 'org-srs)
+  (cl-assert (buffer-file-name (buffer-base-buffer))
+             nil "Buffer should be visiting a file")
   (org-srs-item-new-interactively
    (prog1 (read (completing-read "Item type: " (org-srs-item-types) nil t))
      (org-id-get-create))))
