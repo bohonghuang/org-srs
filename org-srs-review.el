@@ -84,7 +84,7 @@
   :group 'org-srs
   :type 'boolean)
 
-(org-srs-property-defcustom org-srs-review-learn-ahead-limit '(20 :minute)
+(org-srs-property-defcustom org-srs-review-learn-ahead-limit #'org-srs-time-tomorrow
   "The maximum advance time for due items when no items are available for review."
   :group 'org-srs
   :type 'sexp)
@@ -124,8 +124,12 @@
                            predicate-null)))))
            (or (org-srs-query-buffer (predicate-pending))
                (org-srs-query-buffer (predicate-pending
-                                      (apply #'org-srs-time+ (current-time)
-                                               (org-srs-review-learn-ahead-limit)))))))))
+                                      (let ((limit (org-srs-review-learn-ahead-limit)))
+                                        (cl-etypecase limit
+                                          (list
+                                           (apply #'org-srs-time+ (current-time) limit))
+                                          (function
+                                           (funcall limit)))))))))))
     (string
      (cl-assert (file-exists-p source))
      (cl-assert (not (file-directory-p source)))
