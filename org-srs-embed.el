@@ -381,13 +381,8 @@ The Org-srs entry export buffer is current and still narrowed."
     (find-file file)
     (goto-char position)))
 
-(org-srs-property-defcustom org-srs-embed-export-front-regexp (rx (* blank) (? "- ") (group (*? anychar)) (char "：:"))
+(org-srs-property-defcustom org-srs-embed-export-headline (rx (* blank) (? "- ") (group (*? anychar)) (char "：:"))
   "The default regexp used to extract the headlines of entries in batch export."
-  :group 'org-srs
-  :type 'regexp)
-
-(org-srs-property-defcustom org-srs-embed-export-back-regexp (rx (+ anychar))
-  "The default regexp used to extract the content of entries in batch export."
   :group 'org-srs
   :type 'regexp)
 
@@ -416,28 +411,30 @@ than 1 and there is an active region, perform a batch export on the region."
             (org-forward-element ()
               (cl-case (org-element-type (org-element-at-point))
                 (plain-list (forward-char) (org-forward-element))
-                (t (org-forward-element)))))
+                (t (org-forward-element))))
+            (read-export-item-type ()
+              (if (> arg 1) (intern (completing-read "Item type: " (org-srs-item-types) nil t))
+                (org-srs-embed-export-item-type))))
     (if (and (> arg 1) (region-active-p))
         (let* ((front "")
-               (front-regexp (read-string "Headline regexp: " (org-srs-embed-export-front-regexp)))
                (export-hook (lambda ()
                               (when org-srs-embed-export-mode
                                 (insert front)
                                 (org-srs-embed-export-finalize)))))
-          (unwind-protect
-              (cl-loop with start = (copy-marker (region-beginning)) and end = (copy-marker (region-end))
-                       initially (add-hook 'org-srs-embed-export-mode-hook export-hook) (deactivate-mark) (goto-char start)
-                       do (save-excursion
-                            (re-search-forward front-regexp (pos-eol))
-                            (setf front (match-string 1))
-                            (let ((element (org-element-copy (org-element-at-point))))
-                              (setf (org-element-begin element) (point))
-                              (ensure-entry element)))
-                       while (progn (org-forward-element) (<= (point) (marker-position end))))
-            (remove-hook 'org-srs-embed-export-mode-hook export-hook)))
-      (org-srs-property-let ((org-srs-embed-export-item-type
-                              (if (> arg 1) (intern (completing-read "Item type: " (org-srs-item-types) nil t))
-                                (org-srs-embed-export-item-type))))
+          (org-srs-property-let ((org-srs-embed-export-item-type (read-export-item-type))
+                                 (org-srs-embed-export-headline (read-string "Headline regexp: " (org-srs-embed-export-headline))))
+            (unwind-protect
+                (cl-loop with start = (copy-marker (region-beginning)) and end = (copy-marker (region-end))
+                         initially (add-hook 'org-srs-embed-export-mode-hook export-hook) (deactivate-mark) (goto-char start)
+                         do (save-excursion
+                              (re-search-forward (org-srs-embed-export-headline) (pos-eol))
+                              (setf front (match-string 1))
+                              (let ((element (org-element-copy (org-element-at-point))))
+                                (setf (org-element-begin element) (point))
+                                (ensure-entry element)))
+                         while (progn (org-forward-element) (<= (point) (marker-position end))))
+              (remove-hook 'org-srs-embed-export-mode-hook export-hook))))
+      (org-srs-property-let ((org-srs-embed-export-item-type (read-export-item-type)))
         (cond
          ((looking-at-p org-srs-embed-entry-header-regexp) (org-srs-embed-open-entry))
          ((region-active-p) (error "Exporting a region as an Org-srs entry is not yet implemented"))
