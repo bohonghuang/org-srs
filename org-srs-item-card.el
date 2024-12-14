@@ -74,10 +74,12 @@
   (remove-overlays start (1+ end) 'category 'org-srs-item-card))
 
 (defun org-srs-item-card-show ()
-  (org-fold-show-subtree)
-  (org-srs-item-card-remove-ellipsis-overlays
-   (save-excursion (org-end-of-meta-data t) (point))
-   (save-excursion (org-end-of-subtree) (point))))
+  (save-excursion
+    (org-fold-show-subtree)
+    (org-end-of-subtree)
+    (org-srs-item-card-remove-ellipsis-overlays
+     (org-entry-beginning-position) (point))
+    (org-srs-log-hide-drawer)))
 
 (cl-defun org-srs-item-card-hide (&optional (side :back))
   (org-srs-item-card-show)
@@ -100,13 +102,19 @@
          (org-srs-item-card-put-ellipsis-overlay beg end))))))
 
 (cl-defmethod org-srs-item-review ((type (eql 'card)) &rest args)
-  (org-srs-item-narrow)
-  (org-srs-item-card-hide)
-  (org-srs-review-add-hook-once 'org-srs-item-after-confirm-hook #'org-srs-item-card-show)
-  (apply (org-srs-item-confirmation) type args))
+  (cl-destructuring-bind (&optional (side 'front)) args
+    (org-srs-item-narrow)
+    (org-srs-item-card-hide (cl-ecase side (front :back) (back :front)))
+    (org-srs-review-add-hook-once 'org-srs-item-after-confirm-hook #'org-srs-item-card-show)
+    (apply (org-srs-item-confirmation) type args)))
 
 (cl-defmethod org-srs-item-new ((_type (eql 'card)) &rest args)
   (apply #'org-srs-item-new nil args))
+
+(cl-defmethod org-srs-item-new ((_type (eql 'card-reversible)) &rest args)
+  (cl-assert (null args))
+  (org-srs-item-new '(card front))
+  (org-srs-item-new '(card back)))
 
 (provide 'org-srs-item-card)
 ;;; org-srs-item-card.el ends here

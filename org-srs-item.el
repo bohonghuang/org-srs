@@ -100,13 +100,6 @@
 
 (cl-defgeneric org-srs-item-review (type &rest args))
 
-(defun org-srs-item-types ()
-  (cl-loop for method in (cl--generic-method-table (cl-generic-ensure-function 'org-srs-item-review))
-           for (eql symbol) = (ensure-list (cl-first (cl--generic-method-specializers method)))
-           when (eq eql 'eql)
-           do (cl-assert (eq (cl-first symbol) 'quote))
-           and collect (cl-second symbol)))
-
 (cl-defgeneric org-srs-item-new (type &rest args)
   (let ((item (cons type args)))
     (cl-assert (not (org-srs-item-exists-p item)) nil "Item %s already exists" item)
@@ -114,6 +107,15 @@
     (org-srs-log-end-of-drawer)
     (org-open-line 1)
     (apply #'org-srs-item-insert type args)))
+
+(defun org-srs-item-types ()
+  (cl-delete-duplicates
+   (cl-loop for gf in '(org-srs-item-review org-srs-item-new)
+            nconc (cl-loop for method in (cl--generic-method-table (cl-generic-ensure-function gf))
+                           for (eql symbol) = (ensure-list (cl-first (cl--generic-method-specializers method)))
+                           when (eq eql 'eql)
+                           do (cl-assert (eq (cl-first symbol) 'quote))
+                           and collect (cl-second symbol)))))
 
 (cl-defgeneric org-srs-item-new-interactively (type &rest args)
   (apply #'org-srs-item-new type args))
