@@ -150,34 +150,40 @@
   :group 'org-srs
   :type '(choice
           (const :tag "Position" position)
-          (const :tag "Random" random)))
+          (const :tag "Random" random)
+          (const :tag "Due date" due-date)))
 
-(org-srs-property-defcustom org-srs-review-order-review 'random
+(org-srs-property-defcustom org-srs-review-order-review 'due-date
   "The display order of review items."
   :group 'org-srs
   :type '(choice
           (const :tag "Position" position)
-          (const :tag "Random" random)))
+          (const :tag "Random" random)
+          (const :tag "Due date" due-date)))
 
 (defun org-srs-review-next-due-item ()
   (save-excursion
     (cl-flet ((random-elt (sequence)
                 (when sequence
-                  (elt sequence (random (length sequence))))))
+                  (elt sequence (random (length sequence)))))
+              (timestamp-seconds (&optional (timestamp (org-srs-item-due-timestamp)))
+                (time-to-seconds (org-srs-timestamp-time timestamp))))
       (cl-multiple-value-bind (new-items review-items)
           (cl-loop with items = (org-srs-review-due-items)
                    with predicate-new = (org-srs-query-predicate-new)
                    for item in items
                    do (apply #'org-srs-item-goto item)
-                   if (funcall predicate-new) collect item into new-items
-                   else collect item into review-items
+                   if (funcall predicate-new) collect (cons (timestamp-seconds) item) into new-items
+                   else collect (cons (timestamp-seconds) item) into review-items
                    finally (cl-return (cl-values new-items review-items)))
-        (let ((new-item (cl-ecase (org-srs-review-order-new)
-                          (position (cl-first new-items))
-                          (random (random-elt new-items))))
-              (review-item (cl-ecase (org-srs-review-order-review)
-                             (position (cl-first review-items))
-                             (random (random-elt review-items)))))
+        (let ((new-item (cdr (cl-ecase (org-srs-review-order-new)
+                               (position (cl-first new-items))
+                               (random (random-elt new-items))
+                               (due-date (cl-first (cl-sort new-items #'< :key #'car))))))
+              (review-item (cdr (cl-ecase (org-srs-review-order-review)
+                                  (position (cl-first review-items))
+                                  (random (random-elt review-items))
+                                  (due-date (cl-first (cl-sort review-items #'< :key #'car)))))))
           (cl-ecase (org-srs-review-order-new-review)
             (new-first (or new-item review-item))
             (review-first (or review-item new-item))
