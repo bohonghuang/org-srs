@@ -78,8 +78,8 @@
     (org-fold-show-subtree)
     (org-end-of-subtree)
     (org-srs-item-card-remove-ellipsis-overlays
-     (org-entry-beginning-position) (point))
-    (org-srs-log-hide-drawer)))
+     (org-entry-beginning-position) (point)))
+  (org-srs-log-hide-drawer))
 
 (cl-defun org-srs-item-card-hide (&optional (side :back))
   (org-srs-item-card-show)
