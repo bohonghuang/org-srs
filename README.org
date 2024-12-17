@@ -70,7 +70,9 @@ according to your preference:
 #+END_SRC
 * Usage
 Here are some demonstrations and descriptions for the main features of
-Org-srs.
+Org-srs. You can also open file [[https://github.com/bohonghuang/org-srs/blob/doc/org-srs-example.org][org-srs-example.org]] in Emacs and
+execute command ~org-srs-review-start~ to start an example review
+session right out of the box.
 ** Flashcards
 [[https://github.com/user-attachments/assets/eaafff3c-6463-438d-8780-9cd4c17826cd][Demo]]
 
