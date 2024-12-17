@@ -137,57 +137,62 @@
 
 (defalias 'org-srs-review-add-hook-once 'org-srs-item-add-hook-once)
 
+(defconst org-srs-review-orders
+  '((const :tag "Position" position)
+    (const :tag "Random" random)
+    (const :tag "Due date" due-date)))
+
 (org-srs-property-defcustom org-srs-review-order-new-review 'review-first
   "The relative display order between new items and review items."
   :group 'org-srs
-  :type '(choice
-          (const :tag "Random" random)
+  :type `(choice
           (const :tag "New first" new-first)
-          (const :tag "Review first" review-first)))
+          (const :tag "Review first" review-first)
+          . ,org-srs-review-orders))
 
 (org-srs-property-defcustom org-srs-review-order-new 'position
   "The display order of new items."
   :group 'org-srs
-  :type '(choice
-          (const :tag "Position" position)
-          (const :tag "Random" random)
-          (const :tag "Due date" due-date)))
+  :type `(choice . ,org-srs-review-orders))
 
 (org-srs-property-defcustom org-srs-review-order-review 'due-date
   "The display order of review items."
   :group 'org-srs
-  :type '(choice
-          (const :tag "Position" position)
-          (const :tag "Random" random)
-          (const :tag "Due date" due-date)))
+  :type `(choice . ,org-srs-review-orders))
 
 (defun org-srs-review-next-due-item ()
   (save-excursion
-    (cl-flet ((random-elt (sequence)
-                (when sequence
-                  (elt sequence (random (length sequence)))))
-              (timestamp-seconds (&optional (timestamp (org-srs-item-due-timestamp)))
-                (time-to-seconds (org-srs-timestamp-time timestamp))))
+    (cl-labels ((cl-random-elt (sequence)
+                  (when sequence (elt sequence (random (length sequence)))))
+                (cl-disjoin (&rest functions)
+                  (lambda (&rest args)
+                    (cl-loop for function in functions thereis (apply function args))))
+                (timestamp-seconds (&optional (timestamp (org-srs-item-due-timestamp)))
+                  (time-to-seconds (org-srs-timestamp-time timestamp)))
+                (next-item (items order)
+                  (cl-case order
+                    (position (cl-first (cl-sort items #'< :key #'cl-first)))
+                    (due-date (cl-first (cl-sort items #'< :key #'cl-second)))
+                    (random (cl-random-elt items))
+                    (t (cl-etypecase order (function (funcall order items)))))))
       (cl-multiple-value-bind (new-items review-items)
           (cl-loop with items = (org-srs-review-due-items)
                    with predicate-new = (org-srs-query-predicate-new)
                    for item in items
+                   for index from 0
                    do (apply #'org-srs-item-goto item)
-                   if (funcall predicate-new) collect (cons (timestamp-seconds) item) into new-items
-                   else collect (cons (timestamp-seconds) item) into review-items
+                   if (funcall predicate-new) collect (list index (timestamp-seconds) item) into new-items
+                   else collect (list index (timestamp-seconds) item) into review-items
                    finally (cl-return (cl-values new-items review-items)))
-        (let ((new-item (cdr (cl-ecase (org-srs-review-order-new)
-                               (position (cl-first new-items))
-                               (random (random-elt new-items))
-                               (due-date (cl-first (cl-sort new-items #'< :key #'car))))))
-              (review-item (cdr (cl-ecase (org-srs-review-order-review)
-                                  (position (cl-first review-items))
-                                  (random (random-elt review-items))
-                                  (due-date (cl-first (cl-sort review-items #'< :key #'car)))))))
-          (cl-ecase (org-srs-review-order-new-review)
-            (new-first (or new-item review-item))
-            (review-first (or review-item new-item))
-            (random (random-elt (cl-delete-if #'null (list new-item review-item))))))))))
+        (let* ((new-item (next-item new-items (org-srs-review-order-new)))
+               (review-item (next-item review-items (org-srs-review-order-review)))
+               (items (cl-delete nil (list new-item review-item)))
+               (order (org-srs-review-order-new-review))
+               (order (cl-case order
+                        (review-first (cl-disjoin #'cl-second #'cl-first))
+                        (new-first #'cl-first)
+                        (t order))))
+          (cl-third (next-item items order)))))))
 
 ;;;###autoload
 (defun org-srs-review-start (&rest args)
