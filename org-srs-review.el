@@ -199,6 +199,7 @@
   "Start a review session with ARGS."
   (interactive)
   (require 'org-srs)
+  (cl-assert (not buffer-read-only) nil "Buffer must be editable.")
   (if-let ((item-and-id (org-srs-review-next-due-item)))
       (cl-destructuring-bind (item _id) item-and-id
         (apply #'org-srs-item-goto item-and-id)
