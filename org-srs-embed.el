@@ -348,6 +348,9 @@ The Org-srs entry export buffer is current and still narrowed."
         (org-back-to-heading)
         (call-interactively #'org-srs-item-cloze-update)))))
 
+(defconst org-srs-embed-entry-header-regexp (rx (or (and "@@comment:+srs_embedded:" (* blank) (group-n 1 (*? anychar)) "@@")
+                                                    (and "#+srs_embedded:" (* blank) (group-n 1 (*? anychar)) eol))))
+
 (defun org-srs-embed-goto-link-to-entry ()
   (cl-flet ((org-element-at-point (&aux (element (org-element-at-point)))
               (cl-case (org-element-type element)
@@ -370,7 +373,9 @@ The Org-srs entry export buffer is current and still narrowed."
                return (goto-char element-end)
                minimize element-start into fallback-start)
       (or (let ((case-fold-search t))
-            (re-search-forward (rx "+srs_embedded:" (* blank)) (min current-end child-start) t))
+            (when (re-search-forward org-srs-embed-entry-header-regexp (min current-end child-start) t)
+              (goto-char (match-beginning 1))
+              (cons (match-beginning 0) (match-end 0))))
           (null (goto-char marker))))))
 
 (defun org-srs-embed-open-entry ()
@@ -385,8 +390,6 @@ The Org-srs entry export buffer is current and still narrowed."
   "The default regexp used to extract the headlines of entries in batch export."
   :group 'org-srs
   :type 'regexp)
-
-(defconst org-srs-embed-entry-header-regexp (rx (or "@@comment:+srs_embedded:" "#+srs_embedded:")))
 
 ;;;###autoload
 (cl-defun org-srs-embed-dwim (arg)
@@ -405,8 +408,10 @@ than 1 and there is an active region, perform a batch export on the region."
   (cl-flet ((ensure-entry (&optional (element (org-element-at-point)))
               (cl-assert (not (cl-find (org-element-type element) '(comment keyword))))
               (save-excursion
-                (if (org-srs-embed-goto-link-to-entry)
-                    (apply #'org-srs-embed-update-entry element)
+                (if-let ((bounds (org-srs-embed-goto-link-to-entry)))
+                    (let ((element (org-element-copy element)))
+                      (setf (org-element-begin element) (max (org-element-begin element) (cdr bounds)))
+                      (apply #'org-srs-embed-update-entry element))
                   (apply #'org-srs-embed-export-entry element))))
             (org-forward-element ()
               (cl-case (org-element-type (org-element-at-point))
