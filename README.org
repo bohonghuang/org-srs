@@ -194,3 +194,7 @@ variables are documented.
   | * | 2024-12-07T13:54:34Z |        |           |            |       |
   :END:
 #+END_SRC
+
+#+BEGIN_COMMENT
+
+#+END_COMMENT
