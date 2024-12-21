@@ -99,7 +99,45 @@
 
 (cl-defun org-srs-query-buffer (predicate &optional (buffer (current-buffer)))
   (with-current-buffer buffer
-    (org-srs-query-region predicate)))
+    (cl-loop with items = (org-srs-query-region predicate)
+             with list = (list buffer)
+             for item in items
+             do (setf (nthcdr 2 item) list)
+             finally (cl-return items))))
+
+(cl-defun org-srs-query-file (predicate &optional (file (buffer-file-name (current-buffer))))
+  (org-srs-query-buffer predicate (find-file-noselect file)))
+
+(org-srs-property-defcustom org-srs-query-directory-file-regexp
+  (rx bos (not ".") (+? anychar) ".org" (? ".gpg") eos)
+  "The file name regexp used to filter files to review in a directory."
+  :group 'org-srs
+  :type 'regexp)
+
+(cl-defun org-srs-query-directory (predicate &optional (directory default-directory))
+  (cl-loop for file in (directory-files-recursively directory (org-srs-query-directory-file-regexp))
+           nconc (org-srs-query-file predicate file)))
+
+(defun org-srs-query-rcurry (fun &rest arguments)
+  (lambda (&rest args)
+    (apply fun (nconc args arguments))))
+
+(cl-defgeneric org-srs-query-function (source)
+  (:method
+   ((source cons))
+   (org-srs-query-rcurry #'org-srs-query-region (car source) (cdr source)))
+  (:method
+   ((source buffer))
+   (org-srs-query-rcurry #'org-srs-query-buffer source))
+  (:method
+   ((source string))
+   (cl-assert (file-exists-p source))
+   (if (file-directory-p source)
+       (org-srs-query-rcurry #'org-srs-query-directory source)
+     (org-srs-query-rcurry #'org-srs-query-file source))))
+
+(cl-defun org-srs-query (predicate &optional (source (or (buffer-file-name) default-directory)))
+  (funcall (org-srs-query-function source) predicate))
 
 (provide 'org-srs-query)
 ;;; org-srs-query.el ends here
