@@ -246,7 +246,7 @@ The Org-srs entry export buffer is current and still narrowed."
   "Finalize the Org-srs entry export process."
   (interactive)
   (cl-assert org-srs-embed-export-mode)
-  (run-hooks 'org-srs-embed-prepare-finalize-hook)
+  (org-srs-item-run-hooks-once 'org-srs-embed-prepare-finalize-hook)
   (org-srs-embed-export-finish))
 
 (defun org-srs-embed-export-kill ()
@@ -286,32 +286,29 @@ The Org-srs entry export buffer is current and still narrowed."
       (org-back-to-heading)
       (org-end-of-line)
       (cl-assert (null org-srs-embed-prepare-finalize-hook))
-      (cl-assert (not (cl-member 'org-srs-embed-prepare-finalize-hook (buffer-local-variables) :key #'car)))
-      (add-hook
+      (cl-assert (not (local-variable-p 'org-srs-embed-prepare-finalize-hook)))
+      (org-srs-item-add-hook-once
        'org-srs-embed-prepare-finalize-hook
-       (letrec ((hook (lambda ()
-                        (org-back-to-heading)
-                        (if (eq type 'cloze)
-                            (call-interactively #'org-srs-item-cloze-update)
-                          (org-srs-item-new-interactively type))
-                        (let ((id (org-id-get))
-                              (front (cl-fifth (org-heading-components))))
-                          (cl-assert id) (cl-assert front)
-                          (with-current-buffer buffer
-                            (save-excursion
-                              (goto-char (org-element-begin element))
-                              (let ((start (point))
-                                    (indentation (rx bol (* blank))))
-                                (if (not (and (looking-back indentation (pos-bol)) (looking-at indentation)))
-                                    (insert (format "@@comment:+SRS_EMBEDDED: [[id:%s][%s]]@@ " id front))
-                                  (let ((indentation (match-string 0)))
-                                    (open-line 1)
-                                    (insert indentation)
-                                    (insert (format "#+SRS_EMBEDDED: [[id:%s][%s]]" id front))))
-                                (org-srs-embed-update-overlays start (point))))))
-                        (remove-hook 'org-srs-embed-prepare-finalize-hook hook))))
-         hook)
-       nil t)
+       (lambda ()
+         (org-back-to-heading)
+         (if (eq type 'cloze)
+             (call-interactively #'org-srs-item-cloze-update)
+           (org-srs-item-new-interactively type))
+         (let ((id (org-id-get))
+               (front (cl-fifth (org-heading-components))))
+           (cl-assert id) (cl-assert front)
+           (with-current-buffer buffer
+             (save-excursion
+               (goto-char (org-element-begin element))
+               (let ((start (point))
+                     (indentation (rx bol (* blank))))
+                 (if (not (and (looking-back indentation (pos-bol)) (looking-at indentation)))
+                     (insert (format "@@comment:+SRS_EMBEDDED: [[id:%s][%s]]@@ " id front))
+                   (let ((indentation (match-string 0)))
+                     (open-line 1)
+                     (insert indentation)
+                     (insert (format "#+SRS_EMBEDDED: [[id:%s][%s]]" id front))))
+                 (org-srs-embed-update-overlays start (point))))))))
       (org-srs-embed-export-mode +1))))
 
 (defun org-srs-embed-link-file-position ()

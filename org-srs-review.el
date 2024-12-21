@@ -39,6 +39,9 @@
 
 (defvar org-srs-review-after-rate-hook nil)
 
+(defun org-srs-reviewing-p ()
+  (local-variable-p 'org-srs-review-after-rate-hook))
+
 (defvar org-srs-review-rating)
 
 (cl-defun org-srs-review-rate (rating &optional (position org-srs-review-item-marker))
@@ -52,7 +55,7 @@
     (org-srs-item-repeat (cl-nth-value 0 (org-srs-item-at-point)) rating)
     (org-srs-log-hide-drawer))
   (let ((org-srs-review-rating rating))
-    (run-hooks 'org-srs-review-after-rate-hook)))
+    (org-srs-item-run-hooks-once 'org-srs-review-after-rate-hook)))
 
 (defmacro org-srs-review-define-rating-commands ()
   `(progn . ,(cl-loop for rating in org-srs-review-ratings
@@ -61,6 +64,7 @@
                                  ,(format "Rate the item being reviewed as %s." rating-name)
                                  (interactive)
                                  (require 'org-srs)
+                                 (cl-assert (org-srs-reviewing-p))
                                  (org-srs-review-rate ,rating)))))
 
 ;;;###autoload (autoload 'org-srs-review-rate-easy "org-srs-review" "Rate the item being reviewed as easy." t)
@@ -89,53 +93,51 @@
   :group 'org-srs
   :type 'sexp)
 
-(cl-defun org-srs-review-due-items (&optional (source (current-buffer)))
-  (cl-etypecase source
-    (buffer
-     (with-current-buffer source
-       (let ((items-learned (org-srs-query-buffer (org-srs-query-predicate-learned)))
-             (items-to-review (org-srs-query-predicate-and
-                               (org-srs-query-predicate-due)
-                               (org-srs-query-predicate-not (org-srs-query-predicate-reviewed))
-                               (org-srs-query-predicate-not (org-srs-query-predicate-new))))
-             (items-reviewed (org-srs-query-buffer (org-srs-query-predicate-reviewed))))
-         (cl-flet ((predicate-pending (&optional (now (current-time)))
-                     (let* ((predicate-null (org-srs-query-predicate-or))
-                            (predicate-due-now (org-srs-query-predicate-due now))
-                            (predicate-due-new (org-srs-query-predicate-and
+(cl-defun org-srs-review-due-items-1 (&optional (query-function #'org-srs-query-buffer))
+  (cl-macrolet ((query (predicate) `(funcall query-function ,predicate)))
+    (let ((items-learned (query (org-srs-query-predicate-learned)))
+          (items-to-review (org-srs-query-predicate-and
+                            (org-srs-query-predicate-due)
+                            (org-srs-query-predicate-not (org-srs-query-predicate-reviewed))
+                            (org-srs-query-predicate-not (org-srs-query-predicate-new))))
+          (items-reviewed (query (org-srs-query-predicate-reviewed))))
+      (cl-flet ((predicate-pending (&optional (now (current-time)))
+                  (let* ((predicate-null (org-srs-query-predicate-or))
+                         (predicate-due-now (org-srs-query-predicate-due now))
+                         (predicate-due-new (org-srs-query-predicate-and
+                                             predicate-due-now
+                                             (org-srs-query-predicate-new)))
+                         (predicate-due-nonnew (org-srs-query-predicate-and
                                                 predicate-due-now
-                                                (org-srs-query-predicate-new)))
-                            (predicate-due-nonnew (org-srs-query-predicate-and
-                                                   predicate-due-now
-                                                   (org-srs-query-predicate-not
-                                                    (org-srs-query-predicate-new)))))
-                       (if (< (length items-reviewed) (org-srs-review-max-reviews-per-day))
-                           (if (< (length items-learned) (org-srs-review-new-items-per-day))
-                               (if (or (org-srs-review-new-items-ignore-review-limit-p)
-                                       (< (+ (length items-reviewed) (length items-to-review))
-                                          (org-srs-review-max-reviews-per-day)))
-                                   predicate-due-now
-                                 predicate-due-nonnew)
-                             predicate-due-nonnew)
-                         (if (< (length items-learned) (org-srs-review-new-items-per-day))
-                             (if (org-srs-review-new-items-ignore-review-limit-p)
-                                 predicate-due-new
-                               predicate-null)
-                           predicate-null)))))
-           (or (org-srs-query-buffer (predicate-pending))
-               (org-srs-query-buffer (predicate-pending
-                                      (let ((limit (org-srs-review-learn-ahead-limit)))
-                                        (cl-etypecase limit
-                                          (list
-                                           (apply #'org-srs-time+ (current-time) limit))
-                                          (function
-                                           (funcall limit)))))))))))
-    (string
-     (cl-assert (file-exists-p source))
-     (cl-assert (not (file-directory-p source)))
-     (org-srs-review-due-items (find-file-noselect source)))))
+                                                (org-srs-query-predicate-not
+                                                 (org-srs-query-predicate-new)))))
+                    (if (< (length items-reviewed) (org-srs-review-max-reviews-per-day))
+                        (if (< (length items-learned) (org-srs-review-new-items-per-day))
+                            (if (or (org-srs-review-new-items-ignore-review-limit-p)
+                                    (< (+ (length items-reviewed) (length items-to-review))
+                                       (org-srs-review-max-reviews-per-day)))
+                                predicate-due-now
+                              predicate-due-nonnew)
+                          predicate-due-nonnew)
+                      (if (< (length items-learned) (org-srs-review-new-items-per-day))
+                          (if (org-srs-review-new-items-ignore-review-limit-p)
+                              predicate-due-new
+                            predicate-null)
+                        predicate-null)))))
+        (or (query (predicate-pending))
+            (query (predicate-pending
+                    (let ((limit (org-srs-review-learn-ahead-limit)))
+                      (cl-etypecase limit
+                        (list
+                         (apply #'org-srs-time+ (current-time) limit))
+                        (function
+                         (funcall limit)))))))))))
+
+(cl-defun org-srs-review-due-items (&optional (source (current-buffer)))
+  (org-srs-review-due-items-1 (org-srs-query-function source)))
 
 (defalias 'org-srs-review-add-hook-once 'org-srs-item-add-hook-once)
+(defalias 'org-srs-review-run-hooks-once 'org-srs-item-run-hooks-once)
 
 (defconst org-srs-review-orders
   '((const :tag "Position" position)
@@ -160,7 +162,7 @@
   :group 'org-srs
   :type `(choice . ,org-srs-review-orders))
 
-(defun org-srs-review-next-due-item ()
+(cl-defun org-srs-review-next-due-item (&optional (source (current-buffer)))
   (save-excursion
     (cl-labels ((cl-random-elt (sequence)
                   (when sequence (elt sequence (random (length sequence)))))
@@ -176,7 +178,7 @@
                     (random (cl-random-elt items))
                     (t (cl-etypecase order (function (funcall order items)))))))
       (cl-multiple-value-bind (new-items review-items)
-          (cl-loop with items = (org-srs-review-due-items)
+          (cl-loop with items = (org-srs-review-due-items source)
                    with predicate-new = (org-srs-query-predicate-new)
                    for item in items
                    for index from 0
@@ -194,22 +196,46 @@
                         (t order))))
           (cl-third (next-item items order)))))))
 
+(defun org-srs-review-sources ()
+  (cl-delete
+   nil
+   (list
+    (cons
+     'region
+     (when (region-active-p)
+       (cons
+        (copy-marker (region-beginning))
+        (copy-marker (region-end)))))
+    (cons 'buffer (buffer-file-name))
+    (cons 'directory default-directory))
+   :key #'cdr))
+
 ;;;###autoload
-(defun org-srs-review-start (&rest args)
-  "Start a review session with ARGS."
-  (interactive)
+(cl-defun org-srs-review-start (&optional (source (cdr (cl-first (org-srs-review-sources)))))
+  "Start a review session for items in SOURCE.
+
+If called interactively with a `\\[universal-argument]` prefix or
+ARG greater than 1, prompt the user to select the scope of items
+to review."
+  (interactive (list
+                (cl-destructuring-bind (&optional (arg 1) &aux (sources (org-srs-review-sources)))
+                    current-prefix-arg
+                  (cl-assert (not (org-srs-reviewing-p)))
+                  (if (> arg 1)
+                      (alist-get (read (completing-read "Review scope: " (mapcar #'car sources) nil t)) sources)
+                    (cdr (cl-first sources))))))
   (require 'org-srs)
-  (cl-assert (not buffer-read-only) nil "Buffer must be editable.")
-  (if-let ((item-and-id (org-srs-review-next-due-item)))
-      (cl-destructuring-bind (item _id) item-and-id
-        (apply #'org-srs-item-goto item-and-id)
+  (if-let ((item-args (org-srs-review-next-due-item source)))
+      (let ((item (cl-first item-args)))
+        (apply #'org-srs-item-goto item-args)
+        (cl-assert (not buffer-read-only) nil "Buffer must be editable.")
         (setf org-srs-review-item-marker (point-marker))
         (org-srs-log-hide-drawer org-srs-review-item-marker)
         (apply #'org-srs-item-review (car item) (cdr item))
         (org-srs-log-hide-drawer org-srs-review-item-marker)
         (org-srs-review-add-hook-once
          'org-srs-review-after-rate-hook
-         (apply #'apply-partially #'org-srs-review-start args)
+         (apply-partially #'org-srs-review-start source)
          100))
     (message "Review done")))
 
@@ -217,15 +243,14 @@
 (defun org-srs-review-quit ()
   "Quit the current review session."
   (interactive)
-  (cl-assert (local-variable-p 'org-srs-review-after-rate-hook))
+  (cl-assert (org-srs-reviewing-p))
   (cl-assert (> (length org-srs-review-after-rate-hook) 1))
   (when-let ((position (cl-position t org-srs-review-after-rate-hook :from-end t :test-not #'eq)))
     (if (cl-plusp position)
         (pop (cdr (nthcdr (1- position) org-srs-review-after-rate-hook)))
       (pop org-srs-review-after-rate-hook)))
   (let ((org-srs-review-rating nil))
-    (run-hooks 'org-srs-review-after-rate-hook))
-  (kill-local-variable 'org-srs-review-after-rate-hook))
+    (org-srs-review-run-hooks-once 'org-srs-review-after-rate-hook)))
 
 (provide 'org-srs-review)
 ;;; org-srs-review.el ends here
