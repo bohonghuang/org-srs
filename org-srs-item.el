@@ -58,9 +58,10 @@
   (newline-and-indent)
   (org-srs-log-insert))
 
-(defun org-srs-item-goto (item &rest args)
+(cl-defun org-srs-item-goto (item &optional (id (org-id-get)) buffer)
   (let ((org-link-search-must-match-exact-headline t))
-    (org-link-search (apply #'org-srs-item-link item args))
+    (when buffer (switch-to-buffer buffer))
+    (org-link-search (org-srs-item-link item id))
     (end-of-line)))
 
 (defun org-srs-item-exists-p (item &rest args)
@@ -142,14 +143,26 @@
    (prog1 (read (completing-read "Item type: " (org-srs-item-types) nil t))
      (org-id-get-create))))
 
-(defun org-srs-item-add-hook-once (hook function &optional depth)
+(cl-defun org-srs-item-add-hook-once (hook function &optional depth (local t))
   (add-hook
    hook
-   (letrec ((hook-function (lambda ()
-                             (remove-hook hook hook-function)
-                             (funcall function))))
+   (letrec ((hook-function (lambda () (remove-hook hook hook-function local) (funcall function))))
      hook-function)
-   depth t))
+   depth local))
+
+(defun org-srs-item-run-hook-once (hook)
+  (cl-assert (local-variable-p hook))
+  (let ((cons-set (cl-loop with table = (make-hash-table :test #'eq)
+                           for cons on (symbol-value hook)
+                           do (setf (gethash cons table) t)
+                           finally (cl-return table))))
+    (unwind-protect (run-hooks hook)
+      (when (cl-loop for cons on (symbol-value hook) always (gethash cons cons-set))
+        (cl-assert (null (symbol-value hook)))
+        (kill-local-variable hook)))))
+
+(defun org-srs-item-run-hooks-once (&rest hooks)
+  (mapc #'org-srs-item-run-hook-once hooks))
 
 (defun org-srs-item-narrow ()
   (org-back-to-heading)
@@ -158,14 +171,9 @@
 
 (defvar org-srs-item-after-confirm-hook nil)
 
-(defun org-srs-item-reset-after-confirm-hook ()
-  (kill-local-variable 'org-srs-item-after-confirm-hook))
-
-(add-hook 'org-srs-review-after-rate-hook #'org-srs-item-reset-after-confirm-hook)
-
 (defun org-srs-item-confirmation-read-key (&rest _args)
   (read-key "Press any key to continue")
-  (run-hooks 'org-srs-item-after-confirm-hook))
+  (org-srs-item-run-hooks-once 'org-srs-item-after-confirm-hook))
 
 (org-srs-property-defcustom org-srs-item-confirmation #'org-srs-item-confirmation-read-key
   "The method to confirm the current item and reveal its answer."
