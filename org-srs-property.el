@@ -50,6 +50,7 @@
     (cl-with-gensyms (value anonymous-variable thunk)
       `(progn
          (defcustom ,name . ,defcustom-args)
+         (put ',name 'safe-local-variable #'always)
          (cl-defun ,name (&optional ,value ,thunk)
            (if ,thunk
                (cl-locally
