@@ -235,9 +235,21 @@ to review."
         (org-srs-log-hide-drawer org-srs-review-item-marker)
         (org-srs-review-add-hook-once
          'org-srs-review-after-rate-hook
-         (apply-partially #'org-srs-review-start source)
-         100))
+         (lambda ()
+           (org-srs-review-mode -1)
+           (org-srs-review-start source))
+         100)
+        (org-srs-review-mode +1))
     (message "Review done")))
+
+(define-minor-mode org-srs-review-mode
+  "Local minor mode for reviewing."
+  :lighter " org-srs-review"
+  :keymap '(([f5] . org-srs-review-rate-easy)
+            ([f6] . org-srs-review-rate-good)
+            ([f7] . org-srs-review-rate-hard)
+            ([f8] . org-srs-review-rate-again)
+            ([f9] . org-srs-review-quit)))
 
 ;;;###autoload
 (defun org-srs-review-quit ()
@@ -250,7 +262,8 @@ to review."
         (pop (cdr (nthcdr (1- position) org-srs-review-after-rate-hook)))
       (pop org-srs-review-after-rate-hook)))
   (let ((org-srs-review-rating nil))
-    (org-srs-review-run-hooks-once 'org-srs-review-after-rate-hook)))
+    (org-srs-review-run-hooks-once 'org-srs-review-after-rate-hook))
+  (org-srs-review-mode -1))
 
 (provide 'org-srs-review)
 ;;; org-srs-review.el ends here
