@@ -38,18 +38,21 @@
   (time-add time (seconds-to-time (org-srs-time-desc-seconds desc))))
 
 (cl-defun org-srs-time-truncate-hms (time)
-  (encode-time (cl-fill (decode-time time) 0 :start 0 :end 3)))
+  (let* ((time (decode-time time))
+         (hms (cl-subseq time 0 3)))
+    (cl-values (encode-time (cl-fill time 0 :start 0 :end 3)) (cl-mapcan #'list hms '(:sec :minute :hour)))))
 
 (org-srs-property-defcustom org-srs-time-start-of-next-day '(4 :hour)
   "The offset used to calculate the start time of the next day."
   :group 'org-srs
   :type 'sexp)
 
-(cl-defun org-srs-time-today ()
-  (apply
-   #'org-srs-time+
-   (org-srs-time-truncate-hms (current-time))
-   (org-srs-time-start-of-next-day)))
+(defun org-srs-time-today ()
+  (cl-multiple-value-bind (time hms) (org-srs-time-truncate-hms (current-time))
+    (let ((start-of-day (org-srs-time-start-of-next-day)))
+      (if (< (org-srs-time-desc-seconds hms) (org-srs-time-desc-seconds start-of-day))
+          (apply #'org-srs-time+ time -1 :day start-of-day)
+        (apply #'org-srs-time+ time start-of-day)))))
 
 (defun org-srs-time-tomorrow ()
   (org-srs-time+ (org-srs-time-today) 1 :day))
