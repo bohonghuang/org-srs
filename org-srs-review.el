@@ -27,6 +27,7 @@
 (require 'cl-lib)
 
 (require 'org-srs-property)
+(require 'org-srs-table)
 (require 'org-srs-log)
 (require 'org-srs-query)
 (require 'org-srs-item)
@@ -210,6 +211,13 @@
     (cons 'directory default-directory))
    :key #'cdr))
 
+(org-srs-property-defcustom org-srs-review-learn-ahead-offset-time-p #'org-srs-time-today-p
+  "Whether to offset the scheduled time by the time difference of learning ahead."
+  :group 'org-srs
+  :type '(choice (const :tag "Yes" t)
+                 (const :tag "No" nil)
+                 (const :tag "If scheduled for today" org-srs-time-today-p)))
+
 ;;;###autoload
 (cl-defun org-srs-review-start (&optional (source (cdr (cl-first (org-srs-review-sources)))))
   "Start a review session for items in SOURCE.
@@ -228,6 +236,22 @@ to review."
   (if-let ((item-args (org-srs-review-next-due-item source)))
       (let ((item (cl-first item-args)))
         (apply #'org-srs-item-goto item-args)
+        (when-let ((offset-time-p (org-srs-review-learn-ahead-offset-time-p)))
+          (org-srs-review-add-hook-once
+           'org-srs-review-after-rate-hook
+           (let ((due-timestamp (org-srs-item-due-timestamp)))
+             (lambda ()
+               (when org-srs-review-rating
+                 (let ((difference (org-srs-timestamp-difference due-timestamp (org-srs-timestamp-now))))
+                   (when (cl-plusp difference)
+                     (apply #'org-srs-item-goto item-args)
+                     (org-srs-table-goto-starred-line)
+                     (let ((due-timestamp (org-srs-timestamp+ (org-srs-table-field 'timestamp) difference :sec)))
+                       (when (cl-etypecase offset-time-p
+                               (function (funcall offset-time-p (org-srs-timestamp-time due-timestamp)))
+                               ((eql t) t))
+                         (setf (org-srs-table-field 'timestamp) due-timestamp))))))))
+           95))
         (cl-assert (not buffer-read-only) nil "Buffer must be editable.")
         (setf org-srs-review-item-marker (point-marker))
         (org-srs-log-hide-drawer org-srs-review-item-marker)
