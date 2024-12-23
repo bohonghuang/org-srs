@@ -57,6 +57,11 @@
 (defun org-srs-time-tomorrow ()
   (org-srs-time+ (org-srs-time-today) 1 :day))
 
+(cl-defun org-srs-time-today-p (time)
+  (let ((seconds (time-to-seconds time)))
+    (and (<= (time-to-seconds (org-srs-time-today)) seconds)
+         (< seconds (time-to-seconds (org-srs-time-tomorrow))))))
+
 (cl-deftype org-srs-timestamp () 'string)
 
 (defalias 'org-srs-timestamp-time 'parse-iso8601-time-string)
