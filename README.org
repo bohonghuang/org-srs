@@ -196,5 +196,10 @@ variables are documented.
 #+END_SRC
 
 #+BEGIN_COMMENT
+Keep this block at the bottom of the file.
+It instructs Emacs to ignore examples
+of local variables sections above, see
+<info:emacs#Specifying File Variables>
+The following line contains the form feed 0x0c character.
 
 #+END_COMMENT
