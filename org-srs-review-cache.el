@@ -37,6 +37,7 @@
 
 (cl-defstruct org-srs-review-cache
   (items nil)
+  (pending-items nil)
   (source nil)
   (learn-ahead-limit nil))
 
@@ -50,6 +51,13 @@
   (when-let ((cache (org-srs-review-cache)))
     (cl-assert (org-srs-review-cache-source cache))
     (when source (cl-assert (equal (org-srs-review-cache-source cache) source)))
+    (setf (org-srs-review-cache-pending-items cache)
+          (cl-loop for time-item in (org-srs-review-cache-pending-items cache)
+                   for (time . item) = time-item
+                   if (cl-plusp (org-srs-time-difference time (org-srs-time-now)))
+                   collect time-item
+                   else
+                   do (push item (org-srs-review-cache-items cache))))
     (org-srs-review-cache-items cache)))
 
 (defun \(setf\ org-srs-review-cached-items\) (value &optional source)
@@ -91,14 +99,18 @@ accuracy."
           (goto-char org-srs-review-item-marker)
           (goto-char (org-table-begin))
           (save-restriction
-            (let ((element (org-element-at-point))
-                  (learn-ahead-limit (org-srs-review-cache-learn-ahead-limit (org-srs-review-cache))))
+            (let* ((cache (org-srs-review-cache))
+                   (element (org-element-at-point))
+                   (due (org-srs-timestamp-time (org-srs-item-due-timestamp)))
+                   (learn-ahead-limit (org-srs-review-cache-learn-ahead-limit cache)))
               (narrow-to-region (org-element-begin element) (org-element-end element))
-              (let ((item (org-srs-item-at-point))
+              (let ((item (nconc (cl-multiple-value-list (org-srs-item-at-point)) (list (current-buffer))))
                     (items (org-srs-property-let ((org-srs-review-learn-ahead-limit learn-ahead-limit)) (org-srs-review-due-items-1))))
                 (cl-flet ((item-equal (a b) (cl-loop for elem-a in a for elem-b in b repeat 2 always (equal elem-a elem-b))))
                   (unless (cl-find item items :test #'item-equal)
-                    (setf (org-srs-review-cached-items) (cl-delete item (org-srs-review-cached-items) :test #'item-equal)))))))))
+                    (setf (org-srs-review-cached-items) (cl-delete item (org-srs-review-cached-items) :test #'item-equal))
+                    (when (cl-plusp (org-srs-time-difference (org-srs-time-tomorrow) due))
+                      (push (cons due item) (org-srs-review-cache-pending-items cache))))))))))
     (setf (org-srs-review-cache) nil)))
 
 (add-hook 'org-srs-review-after-rate-hook #'org-srs-review-cache-after-rate 95)
