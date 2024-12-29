@@ -102,7 +102,7 @@
                             (org-srs-query-predicate-not (org-srs-query-predicate-reviewed))
                             (org-srs-query-predicate-not (org-srs-query-predicate-new))))
           (items-reviewed (query (org-srs-query-predicate-reviewed))))
-      (cl-flet ((predicate-pending (&optional (now (current-time)))
+      (cl-flet ((predicate-pending (&optional (now (org-srs-time-now)))
                   (let* ((predicate-null (org-srs-query-predicate-or))
                          (predicate-due-now (org-srs-query-predicate-due now))
                          (predicate-due-new (org-srs-query-predicate-and
@@ -130,7 +130,7 @@
                     (let ((limit (org-srs-review-learn-ahead-limit)))
                       (cl-etypecase limit
                         (list
-                         (apply #'org-srs-time+ (current-time) limit))
+                         (apply #'org-srs-time+ (org-srs-time-now) limit))
                         (function
                          (funcall limit)))))))))))
 
