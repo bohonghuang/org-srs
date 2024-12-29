@@ -60,7 +60,7 @@
           (let ((time (org-srs-timestamp-time (org-srs-table-field 'timestamp))))
             (and (time-less-p from time) (or (null to) (time-less-p time to)))))))))
 
-(cl-defun org-srs-query-predicate-due (&optional (now (current-time)))
+(cl-defun org-srs-query-predicate-due (&optional (now (org-srs-time-now)))
   (lambda ()
     (save-excursion
       (when (re-search-forward org-srs-log-latest-timestamp-regexp (org-table-end))
