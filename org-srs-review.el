@@ -25,6 +25,7 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'cl-generic)
 
 (require 'org-srs-property)
 (require 'org-srs-table)
@@ -40,8 +41,10 @@
 
 (defvar org-srs-review-after-rate-hook nil)
 
+(defvar org-srs-reviewing-predicates (list (apply-partially #'local-variable-p 'org-srs-review-after-rate-hook)))
+
 (defun org-srs-reviewing-p ()
-  (local-variable-p 'org-srs-review-after-rate-hook))
+  (cl-loop for predicate in org-srs-reviewing-predicates thereis (funcall predicate)))
 
 (defvar org-srs-review-rating)
 
@@ -134,7 +137,7 @@
                         (function
                          (funcall limit)))))))))))
 
-(cl-defun org-srs-review-due-items (&optional (source (current-buffer)))
+(cl-defgeneric org-srs-review-due-items (source)
   (org-srs-review-due-items-1 (org-srs-query-function source)))
 
 (defalias 'org-srs-review-add-hook-once 'org-srs-item-add-hook-once)
@@ -251,7 +254,7 @@ to review."
                                (function (funcall offset-time-p (org-srs-timestamp-time due-timestamp)))
                                ((eql t) t))
                          (setf (org-srs-table-field 'timestamp) due-timestamp))))))))
-           95))
+           75))
         (cl-assert (not buffer-read-only) nil "Buffer must be editable.")
         (setf org-srs-review-item-marker (point-marker))
         (org-srs-log-hide-drawer org-srs-review-item-marker)

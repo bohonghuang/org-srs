@@ -71,7 +71,7 @@
       t)))
 
 (cl-defun org-srs-item-due-timestamp (&optional (item nil itemp) &rest args)
-  (save-excursion
+  (save-window-excursion
     (when itemp (apply #'org-srs-item-goto item args))
     (re-search-forward org-srs-log-latest-timestamp-regexp (org-table-end))
     (match-string 2)))
@@ -158,7 +158,6 @@
                            finally (cl-return table))))
     (unwind-protect (run-hooks hook)
       (when (cl-loop for cons on (symbol-value hook) always (gethash cons cons-set))
-        (cl-assert (null (symbol-value hook)))
         (kill-local-variable hook)))))
 
 (defun org-srs-item-run-hooks-once (&rest hooks)
