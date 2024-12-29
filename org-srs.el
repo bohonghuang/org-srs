@@ -40,6 +40,7 @@
 (require 'org-srs-item)
 (require 'org-srs-query)
 (require 'org-srs-review)
+(require 'org-srs-review-cache)
 (require 'org-srs-step)
 
 (require 'org-srs-algorithm-fsrs)
