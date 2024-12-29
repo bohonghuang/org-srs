@@ -44,7 +44,7 @@
 (require 'org-srs-step)
 
 (require 'org-srs-algorithm-fsrs)
-(setf org-srs-algorithm (or org-srs-algorithm 'fsrs))
+(setf (default-value 'org-srs-algorithm) (or (default-value 'org-srs-algorithm) 'fsrs))
 
 (require 'org-srs-item-card)
 (require 'org-srs-item-cloze)
