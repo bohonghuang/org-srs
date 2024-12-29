@@ -37,6 +37,9 @@
 (defun org-srs-time+ (time &rest desc)
   (time-add time (seconds-to-time (org-srs-time-desc-seconds desc))))
 
+(defun org-srs-time-difference (time-a time-b)
+  (- (time-to-seconds time-a) (time-to-seconds time-b)))
+
 (cl-defun org-srs-time-truncate-hms (time)
   (let* ((time (decode-time time))
          (hms (cl-subseq time 0 3)))
@@ -47,8 +50,11 @@
   :group 'org-srs
   :type 'sexp)
 
+(defvar org-srs-time-now #'current-time)
+(defsubst org-srs-time-now () (funcall org-srs-time-now))
+
 (defun org-srs-time-today ()
-  (cl-multiple-value-bind (time hms) (org-srs-time-truncate-hms (current-time))
+  (cl-multiple-value-bind (time hms) (org-srs-time-truncate-hms (org-srs-time-now))
     (let ((start-of-day (org-srs-time-start-of-next-day)))
       (if (< (org-srs-time-desc-seconds hms) (org-srs-time-desc-seconds start-of-day))
           (apply #'org-srs-time+ time -1 :day start-of-day)
@@ -66,7 +72,7 @@
 
 (defalias 'org-srs-timestamp-time 'parse-iso8601-time-string)
 
-(defun org-srs-timestamp-now (&optional time)
+(cl-defun org-srs-timestamp-now (&optional (time (org-srs-time-now)))
   (format-time-string "%FT%TZ" time "UTC0"))
 
 (defalias 'org-srs-timestamp 'org-srs-timestamp-now)
