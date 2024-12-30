@@ -100,10 +100,10 @@
 (cl-defun org-srs-review-due-items-1 (&optional (query-function #'org-srs-query-buffer))
   (cl-macrolet ((query (predicate) `(funcall query-function ,predicate)))
     (let ((items-learned (query (org-srs-query-predicate-learned)))
-          (items-to-review (org-srs-query-predicate-and
-                            (org-srs-query-predicate-due)
-                            (org-srs-query-predicate-not (org-srs-query-predicate-reviewed))
-                            (org-srs-query-predicate-not (org-srs-query-predicate-new))))
+          (items-to-review (query (org-srs-query-predicate-and
+                                   (org-srs-query-predicate-due)
+                                   (org-srs-query-predicate-not (org-srs-query-predicate-reviewed))
+                                   (org-srs-query-predicate-not (org-srs-query-predicate-new)))))
           (items-reviewed (query (org-srs-query-predicate-reviewed))))
       (cl-flet ((predicate-pending (&optional (now (org-srs-time-now)))
                   (let* ((predicate-null (org-srs-query-predicate-or))
