@@ -97,24 +97,17 @@
   :group 'org-srs
   :type 'sexp)
 
-(cl-defun org-srs-review-due-items-1 (&optional (query-function #'org-srs-query-buffer))
-  (cl-macrolet ((query (predicate) `(funcall query-function ,predicate)))
-    (let ((items-learned (query (org-srs-query-predicate-learned)))
-          (items-to-review (query (org-srs-query-predicate-and
-                                   (org-srs-query-predicate-due)
-                                   (org-srs-query-predicate-not (org-srs-query-predicate-reviewed))
-                                   (org-srs-query-predicate-not (org-srs-query-predicate-new)))))
-          (items-reviewed (query (org-srs-query-predicate-reviewed))))
-      (cl-flet ((predicate-pending (&optional (now (org-srs-time-now)))
-                  (let* ((predicate-null (org-srs-query-predicate-or))
-                         (predicate-due-now (org-srs-query-predicate-due now))
-                         (predicate-due-new (org-srs-query-predicate-and
-                                             predicate-due-now
-                                             (org-srs-query-predicate-new)))
-                         (predicate-due-nonnew (org-srs-query-predicate-and
-                                                predicate-due-now
-                                                (org-srs-query-predicate-not
-                                                 (org-srs-query-predicate-new)))))
+(cl-defgeneric org-srs-review-due-items (source)
+  (cl-flet ((org-srs-query (predicate &optional (source source))
+              (org-srs-query predicate source)))
+    (let ((items-learned (org-srs-query 'learned))
+          (items-to-review (org-srs-query '(and due (not reviewed) (not new))))
+          (items-reviewed (org-srs-query 'reviewed)))
+      (cl-flet ((predicate-pending (&optional (now (org-srs-time-now) nowp))
+                  (let* ((predicate-null '(or))
+                         (predicate-due-now (if nowp `(due ,now) 'due))
+                         (predicate-due-new `(and ,predicate-due-now new))
+                         (predicate-due-nonnew `(and ,predicate-due-now (not new))))
                     (if (< (length items-reviewed) (org-srs-review-max-reviews-per-day))
                         (if (< (length items-learned) (org-srs-review-new-items-per-day))
                             (if (or (org-srs-review-new-items-ignore-review-limit-p)
@@ -128,17 +121,14 @@
                               predicate-due-new
                             predicate-null)
                         predicate-null)))))
-        (or (query (predicate-pending))
-            (query (predicate-pending
-                    (let ((limit (org-srs-review-learn-ahead-limit)))
-                      (cl-etypecase limit
-                        (list
-                         (apply #'org-srs-time+ (org-srs-time-now) limit))
-                        (function
-                         (funcall limit)))))))))))
-
-(cl-defgeneric org-srs-review-due-items (source)
-  (org-srs-review-due-items-1 (org-srs-query-function source)))
+        (or (org-srs-query (predicate-pending))
+            (org-srs-query (predicate-pending
+                            (let ((limit (org-srs-review-learn-ahead-limit)))
+                              (cl-etypecase limit
+                                (list
+                                 (apply #'org-srs-time+ (org-srs-time-now) limit))
+                                (function
+                                 (funcall limit)))))))))))
 
 (defalias 'org-srs-review-add-hook-once 'org-srs-item-add-hook-once)
 (defalias 'org-srs-review-run-hooks-once 'org-srs-item-run-hooks-once)
@@ -183,7 +173,7 @@
                     (t (cl-etypecase order (function (funcall order items)))))))
       (cl-multiple-value-bind (new-items review-items)
           (cl-loop with items = (org-srs-review-due-items source)
-                   with predicate-new = (org-srs-query-predicate-new)
+                   with predicate-new = (org-srs-query-predicate 'new)
                    for item in items
                    for index from 0
                    do (apply #'org-srs-item-goto item)

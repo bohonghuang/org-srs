@@ -142,7 +142,7 @@ prompt the user to select the scope of items for optimization."
     (org-srs-algorithm-fsrs-optimizer-optimize
      (progn
        (message "Collecting review history for optimization...")
-       (org-srs-query (org-srs-query-predicate-not (org-srs-query-predicate-new)) file))
+       (org-srs-query '(not new) file))
      (let ((apply-local-variable-function
             (if (file-directory-p file)
                 (lambda (parameters)

@@ -32,14 +32,30 @@
 (require 'org-srs-item)
 (require 'org-srs-time)
 
+(cl-defgeneric org-srs-query-ensure-predicate (name &rest args)
+  (apply (intern (format "%s-%s" 'org-srs-query-predicate name)) args))
+
+(defun org-srs-query-predicate (desc)
+  (apply #'org-srs-query-ensure-predicate (ensure-list desc)))
+
 (defun org-srs-query-predicate-and (&rest predicates)
   (lambda () (cl-loop for predicate in predicates always (funcall predicate))))
+
+(cl-defmethod org-srs-query-ensure-predicate ((_name (eql 'and)) &rest args)
+  (apply #'org-srs-query-predicate-and (mapcar #'org-srs-query-predicate args)))
 
 (defun org-srs-query-predicate-or (&rest predicates)
   (lambda () (cl-loop for predicate in predicates thereis (funcall predicate))))
 
+(cl-defmethod org-srs-query-ensure-predicate ((_name (eql 'or)) &rest args)
+  (apply #'org-srs-query-predicate-or (mapcar #'org-srs-query-predicate args)))
+
 (defun org-srs-query-predicate-not (predicate)
   (lambda () (not (funcall predicate))))
+
+(cl-defmethod org-srs-query-ensure-predicate ((_name (eql 'not)) &rest args)
+  (cl-destructuring-bind (predicate) args
+    (org-srs-query-predicate-not (org-srs-query-predicate predicate))))
 
 (defun org-srs-query-predicate-new ()
   (lambda ()
@@ -137,7 +153,7 @@
      (org-srs-query-rcurry #'org-srs-query-file source))))
 
 (cl-defun org-srs-query (predicate &optional (source (or (buffer-file-name) default-directory)))
-  (funcall (org-srs-query-function source) predicate))
+  (funcall (org-srs-query-function source) (org-srs-query-predicate predicate)))
 
 (provide 'org-srs-query)
 ;;; org-srs-query.el ends here
