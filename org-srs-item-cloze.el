@@ -246,7 +246,7 @@ fields."
 (defun org-srs-item-cloze-update-entry (&optional inherit-history-p)
   (let* ((start (org-entry-beginning-position))
          (end (org-entry-end-position))
-         (items (cl-delete 'cloze (cl-mapcar #'cl-first (org-srs-query-region (org-srs-query-predicate-and) start end)) :key #'car :test-not #'eq))
+         (items (cl-delete 'cloze (cl-mapcar #'cl-first (org-srs-query '(and) (cons start end))) :key #'car :test-not #'eq))
          (clozes (org-srs-item-cloze-collect start end)))
     (setf inherit-history-p (if (= (length items) (length clozes))
                                 (unless (equal (mapcar #'cl-second items) (mapcar #'cl-first clozes))
