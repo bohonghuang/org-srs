@@ -41,10 +41,12 @@
 
 (defvar org-srs-review-after-rate-hook nil)
 
+(defvar org-srs-reviewing-p)
+
 (defvar org-srs-reviewing-predicates (list (apply-partially #'local-variable-p 'org-srs-review-after-rate-hook)))
 
 (defun org-srs-reviewing-p ()
-  (cl-loop for predicate in org-srs-reviewing-predicates thereis (funcall predicate)))
+  (or (bound-and-true-p org-srs-reviewing-p) (cl-loop for predicate in org-srs-reviewing-predicates thereis (funcall predicate))))
 
 (defvar org-srs-review-rating)
 
@@ -97,7 +99,15 @@
   :group 'org-srs
   :type 'sexp)
 
-(cl-defgeneric org-srs-review-due-items (source)
+(cl-defun org-srs-review-learn-ahead-time (&optional (now (org-srs-time-now)))
+  (let ((limit (org-srs-review-learn-ahead-limit)))
+    (cl-etypecase limit
+      (list
+       (apply #'org-srs-time+ now limit))
+      (function
+       (funcall limit)))))
+
+(cl-defun org-srs-review-due-items (source)
   (cl-flet ((org-srs-query (predicate &optional (source source))
               (org-srs-query predicate source)))
     (let ((items-learned (org-srs-query 'learned))
@@ -105,9 +115,10 @@
           (items-reviewed (org-srs-query 'reviewed)))
       (cl-flet ((predicate-pending (&optional (now (org-srs-time-now) nowp))
                   (let* ((predicate-null '(or))
-                         (predicate-due-now (if nowp `(due ,now) 'due))
+                         (predicate-due-now (if nowp `(due ,now) '(due)))
                          (predicate-due-new `(and ,predicate-due-now new))
-                         (predicate-due-nonnew `(and ,predicate-due-now (not new))))
+                         (predicate-due-nonnew `(and ,predicate-due-now (not new)))
+                         (predicate-due-now `(and ,predicate-due-now)))
                     (if (< (length items-reviewed) (org-srs-review-max-reviews-per-day))
                         (if (< (length items-learned) (org-srs-review-new-items-per-day))
                             (if (or (org-srs-review-new-items-ignore-review-limit-p)
@@ -122,13 +133,7 @@
                             predicate-null)
                         predicate-null)))))
         (or (org-srs-query (predicate-pending))
-            (org-srs-query (predicate-pending
-                            (let ((limit (org-srs-review-learn-ahead-limit)))
-                              (cl-etypecase limit
-                                (list
-                                 (apply #'org-srs-time+ (org-srs-time-now) limit))
-                                (function
-                                 (funcall limit)))))))))))
+            (org-srs-query (predicate-pending (org-srs-review-learn-ahead-time))))))))
 
 (defalias 'org-srs-review-add-hook-once 'org-srs-item-add-hook-once)
 (defalias 'org-srs-review-run-hooks-once 'org-srs-item-run-hooks-once)
@@ -211,6 +216,8 @@
                  (const :tag "No" nil)
                  (const :tag "If scheduled for today" org-srs-time-today-p)))
 
+(defvar org-srs-review-finish-hook nil)
+
 ;;;###autoload
 (cl-defun org-srs-review-start (&optional (source (cdr (cl-first (org-srs-review-sources)))))
   "Start a review session for items in SOURCE.
@@ -226,8 +233,8 @@ to review."
                       (alist-get (read (completing-read "Review scope: " (mapcar #'car sources) nil t)) sources)
                     (cdr (cl-first sources))))))
   (require 'org-srs)
-  (if-let ((item-args (org-srs-review-next-due-item source)))
-      (let ((item (cl-first item-args)))
+  (if-let ((item-args (let ((org-srs-reviewing-p t)) (org-srs-review-next-due-item source))))
+      (let ((item (cl-first item-args)) (org-srs-reviewing-p t))
         (apply #'org-srs-item-goto item-args)
         (when-let ((offset-time-p (org-srs-review-learn-ahead-offset-time-p)))
           (org-srs-review-add-hook-once
@@ -254,7 +261,12 @@ to review."
          'org-srs-review-after-rate-hook
          (apply-partially #'org-srs-review-start source)
          100))
-    (message "Review done")))
+    (run-hook-with-args 'org-srs-review-finish-hook source)))
+
+(defun org-srs-review-message-review-done (&rest _args)
+  (message "Review done"))
+
+(add-hook 'org-srs-review-finish-hook #'org-srs-review-message-review-done)
 
 ;;;###autoload
 (defun org-srs-review-quit ()
