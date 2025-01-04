@@ -26,6 +26,7 @@
 
 (require 'cl-lib)
 (require 'cl-generic)
+(require 'pcase)
 
 (require 'org)
 (require 'org-element)
@@ -39,7 +40,7 @@
 (cl-defstruct org-srs-review-cache
   (source nil)
   (queries nil)
-  (undue nil))
+  (pending nil))
 
 (defvar org-srs-review-cache nil)
 (defsubst org-srs-review-cache () org-srs-review-cache)
@@ -47,18 +48,15 @@
 
 (cl-pushnew #'org-srs-review-cache org-srs-reviewing-predicates)
 
-(defun org-srs-review-cache-invalidate (&rest _args)
+(defun org-srs-review-cache-clear (&rest _args)
   (setf (org-srs-review-cache) nil))
 
-(add-hook 'org-srs-review-finish-hook #'org-srs-review-cache-invalidate)
+(add-hook 'org-srs-review-finish-hook #'org-srs-review-cache-clear)
 
-(defun org-srs-review-cache-item-equal (a b)
-  (cl-loop for elem-a in a for elem-b in b repeat 2 always (equal elem-a elem-b)))
-
-(defun org-srs-review-cache-query-predicate-due-time (predicate)
-  (ignore-errors
-    (cl-destructuring-bind (name &optional (time (org-srs-time-now))) (cadr predicate)
-      (when (eq name 'due) time))))
+(cl-defun org-srs-review-cache-query-predicate-due-time (predicate)
+  (pcase predicate
+    (`(and ,(or 'due `(due . ,args)) . ,_)
+     (cl-destructuring-bind (&optional (time (org-srs-time-now))) args time))))
 
 (defconst org-srs-review-cache-null (make-symbol (symbol-name 'nil)))
 
@@ -69,8 +67,8 @@
         (when source (cl-assert (equal (org-srs-review-cache-source cache) source)))
         (save-window-excursion
           (save-excursion
-            (setf (org-srs-review-cache-undue cache)
-                  (cl-loop for time-predicate-item in (org-srs-review-cache-undue cache)
+            (setf (org-srs-review-cache-pending cache)
+                  (cl-loop for time-predicate-item in (org-srs-review-cache-pending cache)
                            for (time . (predicate . item)) = time-predicate-item
                            for due-time = (org-srs-review-cache-query-predicate-due-time predicate)
                            if (cl-plusp (org-srs-time-difference time due-time))
@@ -79,9 +77,6 @@
                            do (push item (alist-get predicate queries nil nil #'equal))))
             (alist-get predicate queries org-srs-review-cache-null t #'equal))))
     org-srs-review-cache-null))
-
-(defun org-srs-review-cache-due-time (cache)
-  (car (cl-find-if #'org-srs-review-cache-query-predicate-due-time (org-srs-review-cache-queries cache) :key #'car)))
 
 (defun \(setf\ org-srs-review-cache-query\) (value predicate &optional source)
   (let ((cache (or (org-srs-review-cache) (setf (org-srs-review-cache) (make-org-srs-review-cache :source source)))))
@@ -93,8 +88,7 @@
   "Non-nil means to cache query results in a review session.
 
 This can increase the speed of retrieving the next review item
-from a large set of review items, but it may reduce scheduling
-accuracy."
+from a large set of review items."
   :group 'org-srs
   :type 'boolean)
 
@@ -102,7 +96,24 @@ accuracy."
   (if (and (org-srs-review-cache-query-p) (org-srs-reviewing-p))
       (let ((result (org-srs-review-cache-query predicate source)))
         (if (eq result org-srs-review-cache-null)
-            (setf (org-srs-review-cache-query predicate source) (funcall fun predicate source))
+            (let ((query-predicate
+                   (if-let ((due-time (org-srs-review-cache-query-predicate-due-time predicate)))
+                       (pcase-exhaustive predicate
+                         (`(and ,due-predicate . ,rest-predicates)
+                          (let* ((tomorrow-time (org-srs-time-tomorrow))
+                                 (cache (org-srs-review-cache))
+                                 (cache-predicate
+                                  (lambda ()
+                                    (let ((due-time (org-srs-timestamp-time (org-srs-item-due-timestamp))))
+                                      (when (cl-plusp (org-srs-time-difference tomorrow-time due-time))
+                                        (let ((item (nconc (cl-multiple-value-list (org-srs-item-at-point)) (list (current-buffer)))))
+                                          (setf (org-srs-review-cache-pending cache)
+                                                (cons (cons due-time (cons predicate item))
+                                                      (cl-delete (cons predicate item) (org-srs-review-cache-pending cache) :key #'cdr :test #'equal))))))
+                                    nil)))
+                            `(and ,@rest-predicates (or ,due-predicate ,cache-predicate)))))
+                     predicate)))
+              (setf (org-srs-review-cache-query predicate source) (funcall fun query-predicate source)))
           result))
     (funcall fun predicate source)))
 
@@ -120,18 +131,21 @@ accuracy."
               (narrow-to-region (org-element-begin element) (1+ (org-element-end element)))
               (goto-char (org-table-begin))
               (let ((item (nconc (cl-multiple-value-list (org-srs-item-at-point)) (list (current-buffer)))))
-                (setf (org-srs-review-cache-undue cache)
-                      (cl-delete item (org-srs-review-cache-undue cache) :key #'cddr :test #'org-srs-review-cache-item-equal)
+                (setf (org-srs-review-cache-pending cache)
+                      (cl-delete item (org-srs-review-cache-pending cache) :key #'cddr :test #'equal)
                       (org-srs-review-cache-queries cache)
-                      (cl-loop for (predicate . items) in (org-srs-review-cache-queries cache)
+                      (cl-loop with tomorrow-time = (org-srs-time-tomorrow)
+                               for (predicate . items) in (org-srs-review-cache-queries cache)
                                for all-satisfied-p = (funcall (org-srs-query-predicate predicate))
-                               for rest-satisfied-p = (and (listp predicate) (funcall (org-srs-query-predicate (cons (car predicate) (cddr predicate)))))
+                               for rest-satisfied-p = (pcase predicate
+                                                        (`(and ,(or 'due `(due . ,_)) . ,rest-predicates)
+                                                         (funcall (org-srs-query-predicate `(and . ,rest-predicates)))))
                                collect (cons predicate (funcall (if all-satisfied-p #'cl-adjoin #'cl-delete)
-                                                                item items :test #'org-srs-review-cache-item-equal))
-                               when (cl-plusp (org-srs-time-difference (org-srs-time-tomorrow) due-time))
+                                                                item items :test #'equal))
+                               when (cl-plusp (org-srs-time-difference tomorrow-time due-time))
                                when (and rest-satisfied-p (not all-satisfied-p))
-                               do (push (cons due-time (cons predicate item)) (org-srs-review-cache-undue cache)))))))))
-    (org-srs-review-cache-invalidate)))
+                               do (push (cons due-time (cons predicate item)) (org-srs-review-cache-pending cache)))))))))
+    (org-srs-review-cache-clear)))
 
 (add-hook 'org-srs-review-after-rate-hook #'org-srs-review-cache-after-rate 95)
 
