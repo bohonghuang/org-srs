@@ -32,11 +32,14 @@
 (require 'org-srs-item)
 (require 'org-srs-time)
 
-(cl-defgeneric org-srs-query-ensure-predicate (name &rest args)
-  (apply (intern (format "%s-%s" 'org-srs-query-predicate name)) args))
+(cl-defgeneric org-srs-query-ensure-predicate (object &rest args)
+  (:method ((name symbol) &rest args) (apply (intern (format "%s-%s" 'org-srs-query-predicate name)) args))
+  (:method ((fun function) &rest args) (if args (lambda () (apply fun args)) fun)))
 
 (defun org-srs-query-predicate (desc)
-  (apply #'org-srs-query-ensure-predicate (ensure-list desc)))
+  (cl-typecase desc
+    (function desc)
+    (t (apply #'org-srs-query-ensure-predicate (ensure-list desc)))))
 
 (defun org-srs-query-predicate-and (&rest predicates)
   (lambda () (cl-loop for predicate in predicates always (funcall predicate))))
