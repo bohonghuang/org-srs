@@ -38,9 +38,10 @@
 (require 'org-srs-query)
 
 (cl-defstruct org-srs-review-cache
-  (source nil)
-  (queries nil)
-  (pending nil))
+  (source nil :type t)
+  (queries nil :type list)
+  (pending nil :type list)
+  (markers (make-hash-table :test #'equal) :type hash-table))
 
 (defvar org-srs-review-cache nil)
 (defsubst org-srs-review-cache () org-srs-review-cache)
@@ -92,8 +93,17 @@ from a large set of review items."
   :group 'org-srs
   :type 'boolean)
 
-(define-advice org-srs-query (:around (fun predicate &optional source) org-srs-review-query-with-cache)
-  (if (and (org-srs-review-cache-query-p) (org-srs-reviewing-p))
+(define-advice org-srs-item-goto (:around (fun &rest args) org-srs-review-cache)
+  (if (and (org-srs-reviewing-p) (org-srs-review-cache-query-p))
+      (cl-destructuring-bind (item &optional (id (org-id-get)) (buffer (current-buffer)) &aux (args (list item id buffer))) args
+        (let* ((markers (org-srs-review-cache-markers (org-srs-review-cache)))
+               (marker (or (gethash args markers) (setf (gethash args markers) (progn (apply fun args) (point-marker))))))
+          (with-current-buffer (switch-to-buffer (marker-buffer marker))
+            (goto-char marker))))
+    (apply fun args)))
+
+(define-advice org-srs-query (:around (fun predicate &optional source) org-srs-review-cache)
+  (if (and (org-srs-reviewing-p) (org-srs-review-cache-query-p))
       (let ((result (org-srs-review-cache-query predicate source)))
         (if (eq result org-srs-review-cache-null)
             (let ((query-predicate

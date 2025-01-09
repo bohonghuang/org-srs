@@ -58,9 +58,9 @@
   (newline-and-indent)
   (org-srs-log-insert))
 
-(cl-defun org-srs-item-goto (item &optional (id (org-id-get)) buffer)
+(cl-defun org-srs-item-goto (item &optional (id (org-id-get)) (buffer (current-buffer)))
   (let ((org-link-search-must-match-exact-headline t))
-    (when buffer (switch-to-buffer buffer))
+    (unless (eq buffer (current-buffer)) (switch-to-buffer buffer))
     (org-link-search (org-srs-item-link item id))
     (end-of-line)))
 
