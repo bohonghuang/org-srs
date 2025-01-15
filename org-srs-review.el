@@ -114,8 +114,8 @@
           (items-to-review (org-srs-query '(and due (not reviewed) (not new))))
           (items-reviewed (org-srs-query 'reviewed)))
       (cl-flet ((predicate-pending (&optional (now (org-srs-time-now) nowp))
-                  (let* ((predicate-null '(or))
-                         (predicate-due-now (if nowp `(due ,now) '(due)))
+                  (let* ((predicate-due-now (if nowp `(due ,now) '(due)))
+                         (predicate-due-reviewed `(and ,predicate-due-now reviewed))
                          (predicate-due-new `(and ,predicate-due-now new))
                          (predicate-due-nonnew `(and ,predicate-due-now (not new)))
                          (predicate-due-now `(and ,predicate-due-now)))
@@ -130,8 +130,8 @@
                       (if (< (length items-learned) (org-srs-review-new-items-per-day))
                           (if (org-srs-review-new-items-ignore-review-limit-p)
                               predicate-due-new
-                            predicate-null)
-                        predicate-null)))))
+                            predicate-due-reviewed)
+                        predicate-due-reviewed)))))
         (or (org-srs-query (predicate-pending))
             (org-srs-query (predicate-pending (org-srs-review-learn-ahead-time))))))))
 
