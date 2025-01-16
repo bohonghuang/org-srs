@@ -308,8 +308,9 @@ delete, or modify a cloze deletion."
              (when (called-interactively-p 'interactive)
                (apply-partially #'y-or-n-p "Sequentially inherit review history from before the cloze modification?"))))
         (cl-loop initially (org-srs-item-cloze-update-entry nil)
-                 for position in (cl-loop for (nil position) in (org-srs-item-cloze-collect) collect (copy-marker position))
-                 do (goto-char position) (update-cloze)
+                 for bounds in (cl-loop for (nil start end) in (org-srs-item-cloze-collect (org-entry-beginning-position) (org-entry-end-position))
+                                        collect (cons (copy-marker start) (copy-marker end)))
+                 do (update-cloze bounds)
                  finally (org-srs-item-cloze-update-entry t)))
       (org-srs-log-hide-drawer))))
 
