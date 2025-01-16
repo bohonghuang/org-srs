@@ -342,7 +342,7 @@ The Org-srs entry export buffer is current and still narrowed."
           (org-srs-embed-export-clozes)
           (goto-char (point-max)))
         (delete-blank-lines)
-        (org-back-to-heading)
+        (goto-char position)
         (call-interactively #'org-srs-item-cloze-update)))))
 
 (defconst org-srs-embed-entry-header-regexp (rx (or (and "@@comment:+srs_embedded:" (* blank) (group-n 1 (*? anychar)) "@@")
