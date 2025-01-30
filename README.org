@@ -61,18 +61,27 @@ according to your preference:
   (use-package org-srs
     :quelpa (org-srs :fetcher github :repo "bohonghuang/org-srs")
     :defer t
-    :hook (org-mode . org-srs-embed-overlay-mode)
-    :bind (:map org-mode-map
-           ("<f5>" . org-srs-review-rate-easy)
-           ("<f6>" . org-srs-review-rate-good)
-           ("<f7>" . org-srs-review-rate-hard)
-           ("<f8>" . org-srs-review-rate-again)))
+    :hook (org-mode . org-srs-embed-overlay-mode))
 #+END_SRC
 * Usage
 Here are some demonstrations and descriptions for the main features of
 Org-srs. You can also open file [[https://github.com/bohonghuang/org-srs/blob/doc/org-srs-example.org][org-srs-example.org]] in Emacs and
 execute command ~org-srs-review-start~ to start an example review
 session right out of the box.
+
+While reviewing, the following keybindings are available
+
+- Key: f5 (org-srs-review-rate-easy) ::
+- Key: f6 (org-srs-review-rate-good) ::
+- Key: f7 (org-srs-review-rate-hard) ::
+- Key: f8 (org-srs-review-rate-again) ::
+
+  Rate your performance on the last card.
+
+- Key: f9 (org-srs-review-quit) ::
+
+  Quit the current review session.
+
 ** Flashcards
 [[https://github.com/user-attachments/assets/eaafff3c-6463-438d-8780-9cd4c17826cd][Demo]]
 
