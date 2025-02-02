@@ -60,7 +60,11 @@
 
 (cl-defun org-srs-item-goto (item &optional (id (org-id-get)) (buffer (current-buffer)))
   (let ((org-link-search-must-match-exact-headline t))
-    (unless (eq buffer (current-buffer)) (switch-to-buffer buffer))
+    (unless (eq buffer (current-buffer))
+      (cl-assert (eq (window-buffer) (current-buffer)))
+      (switch-to-buffer buffer nil t)
+      (cl-assert (eq (window-buffer) buffer)))
+    (cl-assert (eq (current-buffer) buffer))
     (org-link-search (org-srs-item-link item id))
     (end-of-line)))
 
