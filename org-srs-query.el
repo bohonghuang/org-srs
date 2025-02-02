@@ -128,7 +128,7 @@
   (org-srs-query-buffer predicate (find-file-noselect file)))
 
 (org-srs-property-defcustom org-srs-query-directory-file-regexp
-  (rx bos (not ".") (+? anychar) ".org" (? ".gpg") eos)
+  (rx bos (not ".") (*? anychar) ".org" (? ".gpg") eos)
   "The file name regexp used to filter files to review in a directory."
   :group 'org-srs
   :type 'regexp)
