@@ -162,7 +162,7 @@
   :type `(choice . ,org-srs-review-orders))
 
 (cl-defun org-srs-review-next-due-item (&optional (source (current-buffer)))
-  (save-excursion
+  (save-window-excursion
     (cl-labels ((cl-random-elt (sequence)
                   (when sequence (elt sequence (random (length sequence)))))
                 (cl-disjoin (&rest functions)
@@ -252,7 +252,7 @@ to review."
                                ((eql t) t))
                          (setf (org-srs-table-field 'timestamp) due-timestamp))))))))
            75))
-        (cl-assert (not buffer-read-only) nil "Buffer must be editable.")
+        (cl-assert (not buffer-read-only) nil "Buffer %S must be editable." (current-buffer))
         (setf org-srs-review-item-marker (point-marker))
         (org-srs-log-hide-drawer org-srs-review-item-marker)
         (apply #'org-srs-item-review (car item) (cdr item))
