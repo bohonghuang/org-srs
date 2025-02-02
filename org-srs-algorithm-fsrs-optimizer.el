@@ -115,8 +115,9 @@
   (let ((file (make-temp-file "org-srs-algorithm-fsrs-optimizer" nil ".csv")))
     (with-temp-buffer
       (let ((buffer (current-buffer)))
-        (save-window-excursion
-          (org-srs-algorithm-fsrs-optimizer-insert-review-log items buffer)))
+        (with-current-buffer (window-buffer)
+          (save-window-excursion
+            (org-srs-algorithm-fsrs-optimizer-insert-review-log items buffer))))
       (append-to-file (point-min) (point-max) file))
     (org-srs-algorithm-fsrs-optimizer-start-process
      file

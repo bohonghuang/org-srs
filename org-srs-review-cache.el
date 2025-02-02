@@ -98,8 +98,8 @@ from a large set of review items."
       (cl-destructuring-bind (item &optional (id (org-id-get)) (buffer (current-buffer)) &aux (args (list item id buffer))) args
         (let* ((markers (org-srs-review-cache-markers (org-srs-review-cache)))
                (marker (or (gethash args markers) (setf (gethash args markers) (progn (apply fun args) (point-marker))))))
-          (with-current-buffer (switch-to-buffer (marker-buffer marker))
-            (goto-char marker))))
+          (switch-to-buffer (marker-buffer marker) nil t)
+          (goto-char marker)))
     (apply fun args)))
 
 (define-advice org-srs-query (:around (fun &rest args) org-srs-review-cache)
