@@ -116,5 +116,9 @@
   (org-srs-item-new '(card front))
   (org-srs-item-new '(card back)))
 
+(cl-defmethod org-srs-item-new ((_type (eql 'card-reversed)) &rest args)
+  (cl-assert (null args))
+  (org-srs-item-new '(card back)))
+
 (provide 'org-srs-item-card)
 ;;; org-srs-item-card.el ends here
