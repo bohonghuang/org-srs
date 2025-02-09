@@ -107,11 +107,11 @@
       (function
        (funcall limit)))))
 
-(cl-defun org-srs-review-due-items (source)
+(cl-defun org-srs-review-due-items (source &optional (learn-ahead-time (org-srs-review-learn-ahead-time)))
   (cl-flet ((org-srs-query (predicate &optional (source source))
               (org-srs-query predicate source)))
     (let ((items-learned (org-srs-query 'learned))
-          (items-to-review (org-srs-query '(and due (not reviewed) (not new))))
+          (items-to-review (org-srs-query `(and (due ,learn-ahead-time) (not reviewed) (not new))))
           (items-reviewed (org-srs-query 'reviewed)))
       (cl-flet ((predicate-pending (&optional (now (org-srs-time-now) nowp))
                   (let* ((predicate-due-now (if nowp `(due ,now) '(due)))
@@ -133,7 +133,7 @@
                             predicate-due-reviewed)
                         predicate-due-reviewed)))))
         (or (org-srs-query (predicate-pending))
-            (org-srs-query (predicate-pending (org-srs-review-learn-ahead-time))))))))
+            (org-srs-query (predicate-pending learn-ahead-time)))))))
 
 (defalias 'org-srs-review-add-hook-once 'org-srs-item-add-hook-once)
 (defalias 'org-srs-review-run-hooks-once 'org-srs-item-run-hooks-once)
