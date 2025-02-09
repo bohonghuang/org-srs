@@ -263,12 +263,30 @@ The Org-srs entry export buffer is current and still narrowed."
   :group 'org-srs
   :type (cons 'choice (mapcar (apply-partially #'list 'const) (org-srs-item-types))))
 
+(org-srs-property-defcustom org-srs-embed-export-cloze-type 'one-by-one
+  "Whether the exported cloze deletions will be reviewed all at once or one by one."
+  :group 'org-srs
+  :type '(choice
+          (const :tag "One-by-one" one-by-one)
+          (const :tag "All-at-once" all-at-once)))
+
+(defun org-srs-embed-item-cloze-updater ()
+  (cl-ecase (org-srs-embed-export-cloze-type)
+    (one-by-one
+     (apply-partially #'call-interactively #'org-srs-item-cloze-update))
+    (all-at-once
+     (lambda ()
+       (goto-char (org-entry-beginning-position))
+       (when (re-search-forward org-srs-item-cloze-regexp (org-entry-end-position) t)
+         (ignore-errors (org-srs-item-new 'cloze)))))))
+
 (cl-defgeneric org-srs-embed-export-entry (type props)
   (let* ((element (list type props))
          (buffer (current-buffer))
          (content (buffer-substring (org-element-begin element) (org-element-end element)))
          (window-configuration (current-window-configuration))
-         (type (org-srs-embed-export-item-type)))
+         (type (org-srs-embed-export-item-type))
+         (cloze-updater (org-srs-embed-item-cloze-updater)))
     (with-current-buffer (switch-to-buffer (find-file-noselect (funcall (org-srs-embed-srs-file))))
       (setf org-srs-embed-export-window-configuration window-configuration)
       (goto-char (point-max))
@@ -292,7 +310,7 @@ The Org-srs entry export buffer is current and still narrowed."
        (lambda ()
          (org-back-to-heading)
          (if (eq type 'cloze)
-             (call-interactively #'org-srs-item-cloze-update)
+             (funcall cloze-updater)
            (org-srs-item-new-interactively type))
          (let ((id (org-id-get))
                (front (cl-fifth (org-heading-components))))
@@ -328,7 +346,8 @@ The Org-srs entry export buffer is current and still narrowed."
 
 (cl-defgeneric org-srs-embed-update-entry (type props)
   (let* ((element (list type props))
-         (content (buffer-substring (org-element-begin element) (org-element-end element))))
+         (content (buffer-substring (org-element-begin element) (org-element-end element)))
+         (updater (org-srs-embed-item-cloze-updater)))
     (cl-multiple-value-bind (file position) (org-srs-embed-link-file-position)
       (with-current-buffer (find-file-noselect file)
         (goto-char position)
@@ -343,7 +362,7 @@ The Org-srs entry export buffer is current and still narrowed."
           (goto-char (point-max)))
         (delete-blank-lines)
         (goto-char position)
-        (call-interactively #'org-srs-item-cloze-update)))))
+        (funcall updater)))))
 
 (defconst org-srs-embed-entry-header-regexp (rx (or (and "@@comment:+srs_embedded:" (* blank) (group-n 1 (*? anychar)) "@@")
                                                     (and "#+srs_embedded:" (* blank) (group-n 1 (*? anychar)) eol))))
