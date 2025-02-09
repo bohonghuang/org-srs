@@ -115,31 +115,28 @@
   :type 'boolean)
 
 (cl-defmethod org-srs-item-review ((type (eql 'cloze)) &rest args)
-  (cl-loop with visibility = (org-srs-item-cloze-visibility) and current
-           with (cloze-id) = args
+  (cl-loop with visibility = (org-srs-item-cloze-visibility) and cloze-id-set = args
            initially (org-srs-item-cloze-remove-overlays)
            for cloze in (progn (org-srs-item-narrow) (org-srs-item-cloze-collect))
            for (id . (start end text hint)) = cloze
-           if (eql id cloze-id)
-           do (setf current (cons (org-srs-item-cloze-put-overlay
-                                   start end
-                                   (org-srs-item-cloze-current hint))
-                                  cloze))
+           if (or (null cloze-id-set) (member id cloze-id-set))
+           collect (cons (org-srs-item-cloze-put-overlay
+                          start end
+                          (org-srs-item-cloze-current hint))
+                         cloze)
+           into hidden-clozes
            else
            do (cl-ecase visibility
                 ((nil) (org-srs-item-cloze-put-overlay start end (org-srs-item-cloze-hidden)))
                 ((t) (org-srs-item-cloze-put-overlay start end text)))
            finally
-           (org-srs-item-add-hook-once
-            'org-srs-item-after-confirm-hook
-            (cl-destructuring-bind (overlay _id start _end text &optional _hint) current
-              (cl-assert (overlayp overlay))
-              (when (org-srs-item-cloze-centered-in-review-p)
-                (goto-char start)
-                (recenter)
-                (org-srs-item-cloze-recenter-horizontally))
-              (lambda ()
-                (setf (org-srs-item-cloze-overlay-text overlay) (org-srs-item-cloze-answer text)))))
+           (cl-loop for (overlay _id start _end text _hint) in hidden-clozes
+                    do (cl-assert (overlayp overlay))
+                    when (and (org-srs-item-cloze-centered-in-review-p) (= (length hidden-clozes) 1))
+                    do (goto-char start) (recenter) (org-srs-item-cloze-recenter-horizontally) end
+                    do (org-srs-item-add-hook-once
+                        'org-srs-item-after-confirm-hook
+                        (apply-partially #'\(setf\ org-srs-item-cloze-overlay-text\) (org-srs-item-cloze-answer text) overlay)))
            (org-srs-item-add-hook-once 'org-srs-review-after-rate-hook #'org-srs-item-cloze-remove-overlays)
            (apply (org-srs-item-confirmation) type args)))
 
@@ -400,9 +397,18 @@ delete, or modify a cloze deletion."
 
 (cl-defmethod org-srs-item-new-interactively ((_type (eql 'cloze)) &rest args)
   (if args (cl-call-next-method)
-    (org-srs-item-cloze-dwim)
-    (deactivate-mark)
-    (org-srs-item-new (org-srs-item-cloze-item-at-point))))
+    (condition-case err
+        (progn
+          (org-srs-item-cloze-dwim)
+          (deactivate-mark)
+          (org-srs-item-new (org-srs-item-cloze-item-at-point)))
+      (cl-no-applicable-method
+       (let ((element (org-element-at-point)))
+         (cl-case (org-element-type element)
+           (headline
+            (cl-assert (= (org-element-begin element) (org-entry-beginning-position)))
+            (cl-call-next-method))
+           (t (signal (car err) (cdr err)))))))))
 
 (provide 'org-srs-item-cloze)
 ;;; org-srs-item-cloze.el ends here
