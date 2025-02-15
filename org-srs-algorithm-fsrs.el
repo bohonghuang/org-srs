@@ -45,24 +45,33 @@
 
 (defconst org-srs-algorithm-fsrs-card-slots (mapcar #'cl--slot-descriptor-name (cl--class-slots (cl-find-class 'fsrs-card))))
 
+(defun org-srs-algorithm-fsrs-ensure-card (object)
+  (cl-etypecase object
+    (fsrs-card object)
+    (list (cl-loop with card = (make-fsrs-card) and args = (copy-alist object)
+                   initially (setf (car (cl-find 'timestamp args :key #'car :from-end t)) 'last-review)
+                   for slot in org-srs-algorithm-fsrs-card-slots
+                   for cons = (assoc slot args)
+                   for (key . value) = cons
+                   when cons
+                   do (setf (eieio-oref card key) value)
+                   finally (cl-return card)))))
+
 (cl-defmethod org-srs-algorithm-repeat ((fsrs fsrs-scheduler) (args list))
-  (let ((card (make-fsrs-card))
-        (rating (alist-get 'rating args))
-        (timestamp (alist-get 'timestamp args (org-srs-timestamp-now))))
-    (cl-assert (keywordp rating))
-    (setf (car (cl-find 'timestamp args :key #'car :from-end t)) 'last-review)
-    (cl-loop for slot in org-srs-algorithm-fsrs-card-slots
-             for cons = (assoc slot args)
-             for (key . value) = cons
-             when cons
-             do (setf (eieio-oref card key) value))
-    (cl-loop with card = (cl-nth-value 0 (fsrs-scheduler-review-card fsrs card rating timestamp))
-             for slot in org-srs-algorithm-fsrs-card-slots
-             collect (cons
-                      (cl-case slot (due 'timestamp) (t slot))
-                      (cl-case slot (state (or (org-srs-step-state) (fsrs-card-state card))) (t (eieio-oref card slot))))
-             into slots
-             finally (cl-return (nconc slots args)))))
+  (cl-loop with card-old = (org-srs-algorithm-fsrs-ensure-card args)
+           and rating = (alist-get 'rating args)
+           and timestamp = (alist-get 'timestamp args (org-srs-timestamp-now))
+           with card-new = (cl-nth-value 0 (fsrs-scheduler-review-card fsrs card-old rating timestamp))
+           for slot in org-srs-algorithm-fsrs-card-slots
+           collect (cons
+                    (cl-case slot
+                      (due 'timestamp)
+                      (t slot))
+                    (cl-case slot
+                      (state (or (org-srs-step-state) (fsrs-card-state card-new)))
+                      (t (eieio-oref card-new slot))))
+           into slots
+           finally (cl-return (nconc slots args))))
 
 (provide 'org-srs-algorithm-fsrs)
 ;;; org-srs-algorithm-fsrs.el ends here
