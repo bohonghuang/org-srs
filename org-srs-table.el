@@ -116,6 +116,25 @@
     (org-table-blank-field)
     (insert value)))
 
+(defun org-srs-table-call-with-temp-buffer (thunk)
+  (let* ((begin (org-table-begin)) (end (org-table-end)) (point (- (point) begin))
+         (table (buffer-substring-no-properties begin end)))
+    (cl-multiple-value-bind (table point)
+        (with-temp-buffer
+          (insert table)
+          (let ((org-mode-hook nil)) (org-mode))
+          (goto-char (+ (org-table-begin) point))
+          (funcall thunk)
+          (let* ((begin (org-table-begin)) (end (org-table-end)) (point (- (point) begin)))
+            (cl-values (buffer-substring-no-properties begin end) point)))
+      (delete-region begin end)
+      (insert table)
+      (goto-char (+ begin point)))))
+
+(cl-defmacro org-srs-table-with-temp-buffer (&rest body)
+  (declare (indent 0))
+  `(org-srs-table-call-with-temp-buffer (lambda () . ,body)))
+
 (defvar org-table-get-stored-formulas@org-table-formula-named-column-lhs-support nil)
 
 (define-advice org-table-get-stored-formulas (:around (fun &rest args) org-table-formula-named-column-lhs-support)
