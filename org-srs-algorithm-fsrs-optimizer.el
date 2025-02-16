@@ -35,30 +35,28 @@
 
 (require 'fsrs)
 
-(cl-defun org-srs-algorithm-fsrs-optimizer-insert-review-log (items buffer)
+(cl-defun org-srs-algorithm-fsrs-optimizer-insert-review-log (markers buffer)
   (cl-loop initially (with-current-buffer buffer
                        (insert "review_time,card_id,review_rating,review_state")
                        (newline))
-           for item in items
+           for marker in markers
            for id from 0
-           do (cl-loop initially
-                       (apply #'org-srs-item-goto item)
-                       (org-srs-table-goto-starred-line)
-                       (forward-line -1)
-                       for timestamp = (org-srs-table-field 'timestamp)
-                       for rating = (org-srs-table-field 'rating)
-                       for state = (progn (forward-line -1) (org-srs-table-field 'state))
-                       until (string-empty-p rating)
-                       do (with-current-buffer buffer
-                            (prin1 (truncate (* (time-to-seconds (org-srs-timestamp-time timestamp)) 1000)) buffer)
-                            (insert ",")
-                            (prin1 id buffer)
-                            (insert ",")
-                            (prin1 (fsrs-rating-integer (read rating)) buffer)
-                            (insert ",")
-                            (prin1 (fsrs-state-integer (read state)) buffer)
-                            (newline))
-                       until (org-at-table-hline-p))))
+           do (with-current-buffer (marker-buffer marker)
+                (cl-loop initially (goto-char marker) (org-srs-table-goto-starred-line) (forward-line -1)
+                         for timestamp = (org-srs-table-field 'timestamp)
+                         for rating = (org-srs-table-field 'rating)
+                         for state = (progn (forward-line -1) (org-srs-table-field 'state))
+                         until (string-empty-p rating)
+                         do (with-current-buffer buffer
+                              (prin1 (truncate (* (time-to-seconds (org-srs-timestamp-time timestamp)) 1000)) buffer)
+                              (insert ",")
+                              (prin1 id buffer)
+                              (insert ",")
+                              (prin1 (fsrs-rating-integer (read rating)) buffer)
+                              (insert ",")
+                              (prin1 (fsrs-state-integer (read state)) buffer)
+                              (newline))
+                         until (org-at-table-hline-p)))))
 
 (defun org-srs-algorithm-fsrs-optimizer-iana-tz ()
   (let ((output (shell-command-to-string "timedatectl")))
@@ -111,13 +109,13 @@
                                       when keyword nconc (list keyword value))))
          (kill-buffer buffer))))))
 
-(cl-defun org-srs-algorithm-fsrs-optimizer-optimize (items &optional (callback #'ignore))
+(cl-defun org-srs-algorithm-fsrs-optimizer-optimize (markers &optional (callback #'ignore))
   (let ((file (make-temp-file "org-srs-algorithm-fsrs-optimizer" nil ".csv")))
     (with-temp-buffer
       (let ((buffer (current-buffer)))
         (with-current-buffer (window-buffer)
           (save-window-excursion
-            (org-srs-algorithm-fsrs-optimizer-insert-review-log items buffer))))
+            (org-srs-algorithm-fsrs-optimizer-insert-review-log markers buffer))))
       (append-to-file (point-min) (point-max) file))
     (org-srs-algorithm-fsrs-optimizer-start-process
      file
@@ -141,9 +139,10 @@ prompt the user to select the scope of items for optimization."
   (cl-check-type source string)
   (let ((file source))
     (org-srs-algorithm-fsrs-optimizer-optimize
-     (progn
+     (let ((markers nil))
        (message "Collecting review history for optimization...")
-       (org-srs-query '(not new) file))
+       (org-srs-query `(and (not new) ,(lambda () (push (point-marker) markers))) file)
+       markers)
      (let ((apply-local-variable-function
             (if (file-directory-p file)
                 (lambda (parameters)
