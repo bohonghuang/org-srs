@@ -109,7 +109,7 @@
   (let ((offset (- (current-column) (truncate (window-width) 2))))
     (set-window-hscroll (selected-window) (max offset 0))))
 
-(org-srs-property-defcustom org-srs-item-cloze-centered-in-review-p (apply-partially #'symbol-value 'truncate-lines)
+(org-srs-property-defcustom org-srs-item-cloze-centered-in-review-p nil
   "Non-nil means the cloze deletion in review will be centered in selected window."
   :group 'org-srs
   :type '(choice boolean function))
@@ -134,10 +134,11 @@
                     for (overlay _id start _end text _hint) in hidden-clozes
                     do (cl-assert (overlayp overlay))
                     unless (> (length hidden-clozes) 1)
-                    when (cl-etypecase centeredp
-                           (boolean centeredp)
-                           (function (funcall centeredp)))
-                    do (goto-char start) (recenter) (org-srs-item-cloze-recenter-horizontally) end
+                    do (goto-char start)
+                    and when (cl-etypecase centeredp
+                               (boolean centeredp)
+                               (function (funcall centeredp)))
+                    do (recenter) (org-srs-item-cloze-recenter-horizontally)
                     do (org-srs-item-add-hook-once
                         'org-srs-item-after-confirm-hook
                         (apply-partially #'\(setf\ org-srs-item-cloze-overlay-text\) (org-srs-item-cloze-answer text) overlay)))
