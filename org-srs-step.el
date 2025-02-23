@@ -120,9 +120,11 @@
       (when (symbol-value 'org-srs-review-rating)
         (save-excursion
           (goto-char org-srs-review-item-marker)
-          (org-srs-table-with-temp-buffer
-            (org-srs-table-goto-starred-line)
-            (org-srs-step-update-due-timestamp-1))
+          (org-srs-property-let ((org-srs-step-learning-steps (org-srs-step-learning-steps))
+                                 (org-srs-step-relearning-steps (org-srs-step-relearning-steps)))
+            (org-srs-table-with-temp-buffer
+              (org-srs-table-goto-starred-line)
+              (org-srs-step-update-due-timestamp-1)))
           (org-srs-log-hide-drawer)))
     (org-srs-step-update-due-timestamp-1)))
 
