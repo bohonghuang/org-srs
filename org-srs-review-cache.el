@@ -128,6 +128,10 @@ from a large set of review items."
             result))
       (funcall fun predicate source))))
 
+(define-advice org-srs-review-start (:around (fun &rest args) org-srs-review-cache)
+  (org-srs-property-let ((org-srs-review-cache-query-p (or org-srs-review-cache (org-srs-review-cache-query-p))))
+    (apply fun args)))
+
 (defun org-srs-review-cache-after-rate ()
   (defvar org-srs-review-rating)
   (if (and org-srs-review-rating (org-srs-review-cache-query-p))
