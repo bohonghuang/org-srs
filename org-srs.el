@@ -1,6 +1,6 @@
 ;;; org-srs.el --- A flexible spaced repetition system for Org-mode  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2024 Bohong Huang
+;; Copyright (C) 2024-2025 Bohong Huang
 
 ;; Author: Bohong Huang <bohonghuang@qq.com>
 ;; Maintainer: Bohong Huang <bohonghuang@qq.com>

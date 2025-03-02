@@ -1,6 +1,6 @@
 ;;; org-srs-item-cloze.el --- Interface for review items -*- lexical-binding:t -*-
 
-;; Copyright (C) 2024 Bohong Huang
+;; Copyright (C) 2024-2025 Bohong Huang
 
 ;; This file is not part of GNU Emacs.
 
