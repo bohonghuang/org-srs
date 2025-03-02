@@ -30,9 +30,11 @@
 
 (require 'org-srs-property)
 
+(defconst org-srs-time-units '((:sec . 1) (:minute . 60) (:hour . 3600) (:day . 86400)))
+
 (defun org-srs-time-desc-seconds (desc)
   (cl-loop for (amount unit) on desc by #'cddr
-           sum (* amount (cl-ecase unit (:sec 1) (:minute 60) (:hour 3600) (:day 86400)))))
+           sum (* amount (alist-get unit org-srs-time-units))))
 
 (defun org-srs-time+ (time &rest desc)
   (time-add time (seconds-to-time (org-srs-time-desc-seconds desc))))
