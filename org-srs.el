@@ -42,6 +42,7 @@
 (require 'org-srs-review)
 (require 'org-srs-review-cache)
 (require 'org-srs-step)
+(require 'org-srs-fuzz)
 
 (require 'org-srs-algorithm-fsrs)
 (setf (default-value 'org-srs-algorithm) (or (default-value 'org-srs-algorithm) 'fsrs))
