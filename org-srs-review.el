@@ -273,6 +273,7 @@ to review."
   "Quit the current review session."
   (interactive)
   (cl-assert (org-srs-reviewing-p))
+  (cl-assert (local-variable-p 'org-srs-review-after-rate-hook))
   (cl-assert (> (length org-srs-review-after-rate-hook) 1))
   (when-let ((position (cl-position t org-srs-review-after-rate-hook :from-end t :test-not #'eq)))
     (if (cl-plusp position)
