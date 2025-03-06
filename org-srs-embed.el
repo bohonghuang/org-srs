@@ -373,6 +373,7 @@ The Org-srs entry export buffer is current and still narrowed."
                 (plain-list (org-element-at-point (1+ (point))))
                 (t element))))
     (let ((marker (point-marker))
+          (current-start (org-element-begin (org-element-at-point)))
           (current-end (org-element-end (org-element-at-point)))
           (child-start (or (ignore-errors
                              (org-down-element)
@@ -383,10 +384,12 @@ The Org-srs entry export buffer is current and still narrowed."
                                (when fallback-start
                                  (goto-char fallback-start))
                                (cl-return))
+               for previous-element-start = current-start then element-start
                for (element-start . element-end) = (cons (org-element-begin element) (org-element-end element))
                when (< element-end current-end)
-               unless (and (org-at-keyword-p) (save-excursion (goto-char (1- element-end)) (org-at-keyword-p)))
-               return (goto-char element-end)
+               if (not (org-at-keyword-p)) return (goto-char (max element-end previous-element-start))
+               else unless (save-excursion (goto-char (1- element-start)) (org-at-keyword-p))
+               return (goto-char element-start)
                minimize element-start into fallback-start)
       (or (let ((case-fold-search t))
             (when (re-search-forward org-srs-embed-entry-header-regexp (min current-end child-start) t)
