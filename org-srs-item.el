@@ -178,6 +178,26 @@
   (read-key "Press any key to continue")
   (org-srs-item-run-hooks-once 'org-srs-item-after-confirm-hook))
 
+(defvar org-srs-item--saved-position nil
+  "Used by `org-srs-item-confirmation-wait' to store point and window configuration. Should be nil or (POSITION . WINDOW-CONFIGURATION), where WINDOW-CONFIGURATION is of the type returned by `current-window-configuration'. Current frame is not currently saved.")
+
+(defun org-srs-item-confirmation-wait (&rest _args)
+  "This function can be the value of `org-srs-item-confirmation'. If it is, after presenting an item, Org SRS will wait to reveal its answer until the user executes the command `org-srs-item-confirmation-go'."
+  (setq org-srs-item--saved-position
+        (cons (point) (current-window-configuration)))
+  (if-let ((bindings (where-is-internal #'org-srs-item-confirmation-go)))
+      (message "Org SRS will await `org-srs-item-confirmation-go' %s."
+               (mapcar #'key-description bindings))
+    (message "Org SRS will await `org-srs-item-confirmation-go'.")))
+
+(defun org-srs-item-confirmation-go ()
+  "See `org-srs-item-confirmation-wait'. Under certain circumstances, reveals the currently presented item's answer."
+  (interactive)
+  ;; Restore point, window configuration.
+  (goto-char (car org-srs-item--saved-position))
+  (set-window-configuration (cdr org-srs-item--saved-position))
+  (org-srs-item-run-hooks-once 'org-srs-item-after-confirm-hook))
+
 (org-srs-property-defcustom org-srs-item-confirmation #'org-srs-item-confirmation-read-key
   "The method to confirm the current item and reveal its answer."
   :group 'org-srs
