@@ -178,25 +178,28 @@
   (read-key "Press any key to continue")
   (org-srs-item-run-hooks-once 'org-srs-item-after-confirm-hook))
 
-(defvar org-srs-item--saved-position nil
-  "Used by `org-srs-item-confirmation-wait' to store point and window configuration. Should be nil or (POSITION . WINDOW-CONFIGURATION), where WINDOW-CONFIGURATION is of the type returned by `current-window-configuration'. Current frame is not currently saved.")
+(defvar-local org-srs-item-wait-position nil
+  "Used by `org-srs-item-confirmation-wait' to store point positions. That function should be the only thing that ever locally binds this variable.")
 
 (defun org-srs-item-confirmation-wait (&rest _args)
-  "This function can be the value of `org-srs-item-confirmation'. If it is, after presenting an item, Org SRS will wait to reveal its answer until the user executes the command `org-srs-item-confirmation-go'."
-  (setq org-srs-item--saved-position
-        (cons (point) (current-window-configuration)))
-  (if-let ((bindings (where-is-internal #'org-srs-item-confirmation-go)))
-      (message "Org SRS will await `org-srs-item-confirmation-go' %s."
-               (mapcar #'key-description bindings))
-    (message "Org SRS will await `org-srs-item-confirmation-go'.")))
+  "Associate the current value of point with the current buffer, then tell the user to call `org-srs-item-confirmation-go' to continue.
+
+This function is meant to be a possible value of `org-srs-item-confirmation'."
+  (setq org-srs-item-wait-position (point))
+  (message "Call `org-srs-item-confirmation-go' in this buffer to reveal this item."))
 
 (defun org-srs-item-confirmation-go ()
-  "See `org-srs-item-confirmation-wait'. Under certain circumstances, reveals the currently presented item's answer."
+  "If the current buffer has a running review session, restore point and reveal the answer. Otherwise, notify the user and do nothing.
+
+See also `org-srs-item-confirmation-wait'."
   (interactive)
-  ;; Restore point, window configuration.
-  (goto-char (car org-srs-item--saved-position))
-  (set-window-configuration (cdr org-srs-item--saved-position))
-  (org-srs-item-run-hooks-once 'org-srs-item-after-confirm-hook))
+  (cl-assert (org-srs-reviewing-p))
+  (if org-srs-item-wait-position
+      (progn
+        (goto-char org-srs-item-wait-position)
+        (setq org-srs-item-wait-position nil)
+        (org-srs-item-run-hooks-once 'org-srs-item-after-confirm-hook))
+    (message "This buffer contains no items that are presented for review.")))
 
 (org-srs-property-defcustom org-srs-item-confirmation #'org-srs-item-confirmation-read-key
   "The method to confirm the current item and reveal its answer."
