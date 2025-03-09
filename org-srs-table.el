@@ -116,17 +116,28 @@
     (org-table-blank-field)
     (insert value)))
 
+(cl-defun org-srs-table-call-with-temp-buffer-1 (thunk
+                                                 &optional
+                                                 (table (buffer-substring-no-properties
+                                                         (org-table-begin)
+                                                         (org-table-end)))
+                                                 (point (- (point) (org-table-begin))))
+  (with-temp-buffer
+    (insert table)
+    (let ((org-mode-hook nil)) (org-mode))
+    (goto-char (+ (org-table-begin) point))
+    (funcall thunk)
+    (let* ((begin (org-table-begin)) (end (org-table-end)) (point (- (point) begin)))
+      (cl-values (buffer-substring-no-properties begin end) point))))
+
+(cl-defmacro org-srs-table-with-temp-buffer-1 (&rest body)
+  (declare (indent 0))
+  `(org-srs-table-call-with-temp-buffer-1 (lambda () . ,body)))
+
 (defun org-srs-table-call-with-temp-buffer (thunk)
   (let* ((begin (org-table-begin)) (end (org-table-end)) (point (- (point) begin))
          (table (buffer-substring-no-properties begin end)))
-    (cl-multiple-value-bind (table point)
-        (with-temp-buffer
-          (insert table)
-          (let ((org-mode-hook nil)) (org-mode))
-          (goto-char (+ (org-table-begin) point))
-          (funcall thunk)
-          (let* ((begin (org-table-begin)) (end (org-table-end)) (point (- (point) begin)))
-            (cl-values (buffer-substring-no-properties begin end) point)))
+    (cl-multiple-value-bind (table point) (org-srs-table-call-with-temp-buffer-1 thunk table point)
       (delete-region begin end)
       (insert table)
       (goto-char (+ begin point)))))
