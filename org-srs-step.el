@@ -72,10 +72,9 @@
        learning-steps))))
 
 (defun org-srs-step-state ()
-  (let ((learning-steps (org-srs-step-learning-steps))
-        (relearning-steps (org-srs-step-relearning-steps)))
-    (org-srs-property-let ((org-srs-step-learning-steps learning-steps)
-                           (org-srs-step-relearning-steps relearning-steps))
+  (org-srs-property-let (org-srs-step-learning-steps org-srs-step-relearning-steps)
+    (let ((learning-steps (org-srs-step-learning-steps))
+          (relearning-steps (org-srs-step-relearning-steps)))
       (save-excursion
         (cl-loop while (org-at-table-p)
                  while (string-empty-p (org-srs-table-field 'rating))
@@ -120,8 +119,7 @@
       (when (symbol-value 'org-srs-review-rating)
         (save-excursion
           (goto-char org-srs-review-item-marker)
-          (org-srs-property-let ((org-srs-step-learning-steps (org-srs-step-learning-steps))
-                                 (org-srs-step-relearning-steps (org-srs-step-relearning-steps)))
+          (org-srs-property-let (org-srs-step-learning-steps org-srs-step-relearning-steps)
             (org-srs-table-with-temp-buffer
               (org-srs-table-goto-starred-line)
               (org-srs-step-update-due-timestamp-1)))
