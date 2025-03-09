@@ -229,11 +229,9 @@
 
 (defvar-local org-srs-embed-export-window-configuration nil)
 
-(defcustom org-srs-embed-prepare-finalize-hook nil
+(defvar org-srs-embed-prepare-finalize-hook nil
   "Hook that is run before the finalization starts.
-The Org-srs entry export buffer is current and still narrowed."
-  :group 'org-srs
-  :type 'hook)
+The Org-srs entry export buffer is current and still narrowed.")
 
 (defun org-srs-embed-export-finish ()
   (cl-assert org-srs-embed-export-mode)
