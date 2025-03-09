@@ -90,8 +90,7 @@
       (when (symbol-value 'org-srs-review-rating)
         (save-excursion
           (goto-char org-srs-review-item-marker)
-          (org-srs-property-let ((org-srs-fuzz-ranges (org-srs-fuzz-ranges))
-                                 (org-srs-fuzz-unit (org-srs-fuzz-unit)))
+          (org-srs-property-let (org-srs-fuzz-ranges org-srs-fuzz-unit)
             (org-srs-table-with-temp-buffer
               (org-srs-table-goto-starred-line)
               (org-srs-fuzz-update-due-timestamp-1)))
