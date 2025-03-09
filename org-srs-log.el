@@ -74,8 +74,7 @@
              do (setf (org-srs-table-field name) (prin1-to-string field t))
              finally
              (org-srs-table-forward-star)
-             (setf (org-srs-table-field 'timestamp) (alist-get 'timestamp args))
-             (org-table-align))))
+             (setf (org-srs-table-field 'timestamp) (alist-get 'timestamp args)))))
 
 (defconst org-srs-log-latest-timestamp-regexp (rx (regexp org-srs-table-starred-line-regexp) (* blank) (group (regexp org-srs-timestamp-regexp))))
 

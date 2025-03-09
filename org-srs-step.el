@@ -110,10 +110,6 @@
                  (apply #'org-srs-timestamp+ timestamp-review step-next)
                  (org-srs-timestamp+ (apply #'org-srs-timestamp+ timestamp-review step-last) 1 :day))))))))))
 
-(defun org-srs-step-update-due-timestamp-1 ()
-  (setf (org-srs-table-field 'timestamp) (org-srs-step-due-timestamp))
-  (org-table-align))
-
 (defun org-srs-step-update-due-timestamp ()
   (if (boundp 'org-srs-review-rating)
       (when (symbol-value 'org-srs-review-rating)
@@ -122,9 +118,9 @@
           (org-srs-property-let (org-srs-step-learning-steps org-srs-step-relearning-steps)
             (org-srs-table-with-temp-buffer
               (org-srs-table-goto-starred-line)
-              (org-srs-step-update-due-timestamp-1)))
+              (setf (org-srs-table-field 'timestamp) (org-srs-step-due-timestamp))))
           (org-srs-log-hide-drawer)))
-    (org-srs-step-update-due-timestamp-1)))
+    (setf (org-srs-table-field 'timestamp) (org-srs-step-due-timestamp))))
 
 (add-hook 'org-srs-review-after-rate-hook #'org-srs-step-update-due-timestamp 50)
 

@@ -114,6 +114,12 @@
         (cl-assert (org-srs-table-goto-column column))
         (setf (org-srs-table-field) value))
     (org-table-blank-field)
+    (cl-assert (looking-at (rx (+ blank))))
+    (let* ((value-length (length value))
+           (field-length (- (match-end 0) (match-beginning 0))))
+      (cl-assert (= (point) (match-beginning 0)))
+      (when (> field-length value-length)
+        (delete-region (point) (+ (point) value-length))))
     (insert value)))
 
 (cl-defun org-srs-table-call-with-temp-buffer-1 (thunk
