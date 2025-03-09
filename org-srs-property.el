@@ -27,6 +27,7 @@
 
 (require 'cl-lib)
 (require 'subr-x)
+(require 'cus-edit)
 
 (require 'org)
 (require 'org-element)
@@ -67,12 +68,28 @@
                  (cl-return-from ,name (read ,value))))
              ,name))))))
 
+(cl-defun org-srs-property-call-with-saved-properties (thunk &optional (properties (mapcar #'car (custom-group-members 'org-srs nil))))
+  (cl-destructuring-bind (property . properties) properties
+    (funcall
+     property (funcall property)
+     (if properties (apply-partially #'org-srs-property-call-with-saved-properties thunk properties) thunk))))
+
+(cl-define-compiler-macro org-srs-property-call-with-saved-properties (&whole form thunk &optional properties)
+  (pcase properties
+    (`'(,property) `(org-srs-property-let ((,property (,property))) (funcall ,thunk)))
+    (`'() `(funcall ,thunk))
+    (_ form)))
+
 (defmacro org-srs-property-let (bindings &rest body)
   (declare (indent 1))
-  (if bindings
-      (cl-destructuring-bind ((var val) . rest) bindings
-        `(,var ,val (lambda () (org-srs-property-let ,rest . ,body))))
-    `(progn . ,body)))
+  (pcase-exhaustive bindings
+    (`((,(and (pred symbolp) var) ,val) . ,rest)
+     `(,var ,val (lambda () (org-srs-property-let ,rest . ,body))))
+    (`() `(progn . ,body))
+    (`(,(and (pred symbolp) var) . ,rest)
+     `(org-srs-property-call-with-saved-properties (lambda () (org-srs-property-let ,rest . ,body)) '(,var)))
+    ((and (pred symbolp) (or (and 't (let group 'org-srs)) group))
+     `(org-srs-property-call-with-saved-properties (lambda () . ,body) (mapcar #'car (custom-group-members ',group nil))))))
 
 (provide 'org-srs-property)
 ;;; org-srs-property.el ends here

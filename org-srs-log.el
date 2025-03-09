@@ -79,10 +79,7 @@
 
 (defconst org-srs-log-latest-timestamp-regexp (rx (regexp org-srs-table-starred-line-regexp) (* blank) (group (regexp org-srs-timestamp-regexp))))
 
-(defcustom org-srs-log-drawer-name "SRSITEMS"
-  "The name of drawers used to storage items and their review logs."
-  :group 'org-srs
-  :type 'string)
+(defconst org-srs-log-drawer-name "SRSITEMS")
 
 (defun org-srs-log-end-of-drawer ()
   (save-restriction
