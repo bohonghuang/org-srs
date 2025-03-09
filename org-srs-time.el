@@ -36,6 +36,13 @@
   (cl-loop for (amount unit) on desc by #'cddr
            sum (* amount (alist-get unit org-srs-time-units))))
 
+(defun org-srs-time-seconds-desc (seconds)
+  (cl-loop for (unit . amount) in (reverse org-srs-time-units)
+           for (part remainder) = (cl-multiple-value-list (cl-truncate (or remainder seconds) amount))
+           unless (zerop part)
+           nconc (list part unit)
+           until (zerop remainder)))
+
 (defun org-srs-time+ (time &rest desc)
   (time-add time (seconds-to-time (org-srs-time-desc-seconds desc))))
 
