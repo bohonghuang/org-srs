@@ -253,13 +253,23 @@ to review."
                          (setf (org-srs-table-field 'timestamp) due-timestamp))))))))
            75))
         (cl-assert (not buffer-read-only) nil "Buffer %S must be editable." (current-buffer))
-        (setf org-srs-review-item-marker (point-marker))
+        (cl-assert (not (local-variable-p 'org-srs-review-item-marker)))
+        (cl-assert (null org-srs-review-item-marker))
+        (setq-local org-srs-review-item-marker (point-marker))
+        (org-srs-review-add-hook-once
+         'org-srs-review-after-rate-hook
+         (lambda ()
+           (cl-assert (local-variable-p 'org-srs-review-item-marker))
+           (cl-assert (markerp org-srs-review-item-marker))
+           (kill-local-variable 'org-srs-review-item-marker)
+           (cl-assert (null org-srs-review-item-marker)))
+         99)
         (org-srs-log-hide-drawer org-srs-review-item-marker)
         (apply #'org-srs-item-review (car item) (cdr item))
         (org-srs-log-hide-drawer org-srs-review-item-marker)
         (org-srs-review-add-hook-once
          'org-srs-review-after-rate-hook
-         (apply-partially #'org-srs-review-start source)
+         (lambda () (when org-srs-review-rating (org-srs-review-start source)))
          100))
     (run-hook-with-args 'org-srs-review-finish-hook source)))
 
@@ -273,12 +283,6 @@ to review."
   "Quit the current review session."
   (interactive)
   (cl-assert (org-srs-reviewing-p))
-  (cl-assert (local-variable-p 'org-srs-review-after-rate-hook))
-  (cl-assert (> (length org-srs-review-after-rate-hook) 1))
-  (when-let ((position (cl-position t org-srs-review-after-rate-hook :from-end t :test-not #'eq)))
-    (if (cl-plusp position)
-        (pop (cdr (nthcdr (1- position) org-srs-review-after-rate-hook)))
-      (pop org-srs-review-after-rate-hook)))
   (let ((org-srs-review-rating nil))
     (org-srs-review-run-hooks-once 'org-srs-review-after-rate-hook)))
 

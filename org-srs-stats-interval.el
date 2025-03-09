@@ -52,8 +52,10 @@
 
 (cl-defun org-srs-stats-interval-1 (rating)
   (org-srs-property-let ((org-srs-review-cache-query-p nil))
+    (defvar org-srs-time-now)
     (let ((org-srs-time-now (cl-constantly (org-srs-time-now))))
       (org-srs-table-with-temp-buffer-1
+        (make-local-variable 'org-srs-review-item-marker)
         (save-excursion
           (goto-char (point-min))
           (open-line 1)
@@ -62,7 +64,9 @@
         (let ((cl--random-state (org-srs-stats-interval-deep-copy cl--random-state)))
           (org-srs-log-repeat rating)
           (defvar org-srs-review-rating)
-          (let ((org-srs-review-rating rating))
+          (defvar org-srs-review-item-marker)
+          (let ((org-srs-review-rating rating)
+                (org-srs-review-item-marker (point-marker)))
             (cl-assert (not (local-variable-p 'org-srs-review-after-rate-hook)))
             (run-hooks 'org-srs-review-after-rate-hook))
           (org-srs-table-goto-starred-line)
