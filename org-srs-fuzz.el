@@ -81,10 +81,6 @@
       (apply #'org-srs-timestamp+ timestamp-scheduled
              (org-srs-fuzz-interval-round (org-srs-fuzz-calculate-interval time-scheduled (org-srs-timestamp-time (org-srs-table-field 'timestamp))))))))
 
-(defun org-srs-fuzz-update-due-timestamp-1 ()
-  (setf (org-srs-table-field 'timestamp) (org-srs-fuzz-due-timestamp))
-  (org-table-align))
-
 (defun org-srs-fuzz-update-due-timestamp ()
   (if (boundp 'org-srs-review-rating)
       (when (symbol-value 'org-srs-review-rating)
@@ -93,9 +89,9 @@
           (org-srs-property-let (org-srs-fuzz-ranges org-srs-fuzz-unit)
             (org-srs-table-with-temp-buffer
               (org-srs-table-goto-starred-line)
-              (org-srs-fuzz-update-due-timestamp-1)))
+              (setf (org-srs-table-field 'timestamp) (org-srs-fuzz-due-timestamp))))
           (org-srs-log-hide-drawer)))
-    (org-srs-fuzz-update-due-timestamp-1)))
+    (setf (org-srs-table-field 'timestamp) (org-srs-fuzz-due-timestamp))))
 
 (add-hook 'org-srs-review-after-rate-hook #'org-srs-fuzz-update-due-timestamp 60)
 
