@@ -50,5 +50,7 @@
 (require 'org-srs-item-card)
 (require 'org-srs-item-cloze)
 
+(require 'org-srs-stats-interval)
+
 (provide 'org-srs)
 ;;; org-srs.el ends here
