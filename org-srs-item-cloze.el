@@ -143,7 +143,7 @@
                         'org-srs-item-after-confirm-hook
                         (apply-partially #'\(setf\ org-srs-item-cloze-overlay-text\) (org-srs-item-cloze-answer text) overlay)))
            (org-srs-item-add-hook-once 'org-srs-review-after-rate-hook #'org-srs-item-cloze-remove-overlays)
-           (apply (org-srs-item-confirmation) type args)))
+           (apply (org-srs-item-confirm) type args)))
 
 (defun org-srs-item-cloze-sha1sum-short (content)
   (intern (substring (sha1 content) 0 7)))

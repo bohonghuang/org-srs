@@ -39,6 +39,7 @@
 (cl-eval-when (:compile-toplevel :load-toplevel :execute)
   (defconst org-srs-review-ratings '(:easy :good :hard :again)))
 
+(defvar org-srs-review-before-rate-hook nil)
 (defvar org-srs-review-after-rate-hook nil)
 
 (defvar org-srs-reviewing-p)
@@ -50,7 +51,12 @@
 
 (defvar org-srs-review-rating)
 
+(defalias 'org-srs-review-add-hook-once 'org-srs-item-add-hook-once)
+(defalias 'org-srs-review-run-hooks-once 'org-srs-item-run-hooks-once)
+
 (cl-defun org-srs-review-rate (rating &optional (position org-srs-review-item-marker))
+  (let ((org-srs-review-rating rating))
+    (org-srs-review-run-hooks-once 'org-srs-review-before-rate-hook))
   (save-excursion
     (if position (goto-char position) (cl-multiple-value-call #'org-srs-item-goto (org-srs-item-at-point)))
     (org-srs-table-goto-starred-line)
@@ -61,7 +67,7 @@
     (org-srs-item-repeat (cl-nth-value 0 (org-srs-item-at-point)) rating)
     (org-srs-log-hide-drawer))
   (let ((org-srs-review-rating rating))
-    (org-srs-item-run-hooks-once 'org-srs-review-after-rate-hook)))
+    (org-srs-review-run-hooks-once 'org-srs-review-after-rate-hook)))
 
 (defmacro org-srs-review-define-rating-commands ()
   `(progn . ,(cl-loop for rating in org-srs-review-ratings
@@ -134,9 +140,6 @@
                         predicate-due-reviewed)))))
         (or (org-srs-query (predicate-pending))
             (org-srs-query (predicate-pending learn-ahead-time)))))))
-
-(defalias 'org-srs-review-add-hook-once 'org-srs-item-add-hook-once)
-(defalias 'org-srs-review-run-hooks-once 'org-srs-item-run-hooks-once)
 
 (defconst org-srs-review-orders
   '((const :tag "Position" position)
@@ -284,6 +287,7 @@ to review."
   (interactive)
   (cl-assert (org-srs-reviewing-p))
   (let ((org-srs-review-rating nil))
+    (org-srs-review-run-hooks-once 'org-srs-review-before-rate-hook)
     (org-srs-review-run-hooks-once 'org-srs-review-after-rate-hook)))
 
 (provide 'org-srs-review)
