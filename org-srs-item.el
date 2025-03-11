@@ -178,6 +178,29 @@
   (read-key "Press any key to continue")
   (org-srs-item-run-hooks-once 'org-srs-item-after-confirm-hook))
 
+(defvar-local org-srs-item-wait-position nil
+  "Used by `org-srs-item-confirmation-wait' to store point positions. That function should be the only thing that ever locally binds this variable.")
+
+(defun org-srs-item-confirmation-wait (&rest _args)
+  "Associate the current value of point with the current buffer, then tell the user to call `org-srs-item-confirmation-go' to continue.
+
+This function is meant to be a possible value of `org-srs-item-confirmation'."
+  (setq org-srs-item-wait-position (point))
+  (message "Call `org-srs-item-confirmation-go' in this buffer to reveal this item."))
+
+(defun org-srs-item-confirmation-go ()
+  "If the current buffer has a running review session, restore point and reveal the answer. Otherwise, notify the user and do nothing.
+
+See also `org-srs-item-confirmation-wait'."
+  (interactive)
+  (cl-assert (org-srs-reviewing-p))
+  (if org-srs-item-wait-position
+      (progn
+        (goto-char org-srs-item-wait-position)
+        (setq org-srs-item-wait-position nil)
+        (org-srs-item-run-hooks-once 'org-srs-item-after-confirm-hook))
+    (message "This buffer contains no items that are presented for review.")))
+
 (org-srs-property-defcustom org-srs-item-confirmation #'org-srs-item-confirmation-read-key
   "The method to confirm the current item and reveal its answer."
   :group 'org-srs
