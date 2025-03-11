@@ -155,14 +155,15 @@
    depth local))
 
 (defun org-srs-item-run-hook-once (hook)
-  (cl-assert (local-variable-p hook))
-  (let ((cons-set (cl-loop with table = (make-hash-table :test #'eq)
-                           for cons on (symbol-value hook)
-                           do (setf (gethash cons table) t)
-                           finally (cl-return table))))
-    (unwind-protect (run-hooks hook)
-      (when (cl-loop for cons on (symbol-value hook) always (gethash cons cons-set))
-        (kill-local-variable hook)))))
+  (if (local-variable-p hook)
+      (let ((cons-set (cl-loop with table = (make-hash-table :test #'eq)
+                               for cons on (symbol-value hook)
+                               do (setf (gethash cons table) t)
+                               finally (cl-return table))))
+        (unwind-protect (run-hooks hook)
+          (when (cl-loop for cons on (symbol-value hook) always (gethash cons cons-set))
+            (kill-local-variable hook))))
+    (run-hooks hook)))
 
 (defun org-srs-item-run-hooks-once (&rest hooks)
   (mapc #'org-srs-item-run-hook-once hooks))
@@ -172,36 +173,41 @@
   (org-narrow-to-subtree)
   (org-srs-item-add-hook-once 'org-srs-review-after-rate-hook #'widen))
 
+(defvar org-srs-item-before-confirm-hook nil)
 (defvar org-srs-item-after-confirm-hook nil)
 
-(defun org-srs-item-confirmation-read-key (&rest _args)
-  (read-key "Press any key to continue")
+(defun org-srs-item-confirm-read-key (&rest _args)
+  (org-srs-item-run-hooks-once 'org-srs-item-before-confirm-hook)
+  (read-key "Continue with any key")
   (org-srs-item-run-hooks-once 'org-srs-item-after-confirm-hook))
 
-(defvar-local org-srs-item-wait-position nil
-  "Used by `org-srs-item-confirmation-wait' to store point positions. That function should be the only thing that ever locally binds this variable.")
+(defun org-srs-item-confirm-command (&rest _args)
+  "Continue the item being reviewed in the current review session.
 
-(defun org-srs-item-confirmation-wait (&rest _args)
-  "Associate the current value of point with the current buffer, then tell the user to call `org-srs-item-confirmation-go' to continue.
-
-This function is meant to be a possible value of `org-srs-item-confirmation'."
-  (setq org-srs-item-wait-position (point))
-  (message "Call `org-srs-item-confirmation-go' in this buffer to reveal this item."))
-
-(defun org-srs-item-confirmation-go ()
-  "If the current buffer has a running review session, restore point and reveal the answer. Otherwise, notify the user and do nothing.
-
-See also `org-srs-item-confirmation-wait'."
+This command is intended to be used only when customizable option
+`org-srs-item-confirm' is set to `org-srs-item-confirm-command' for
+the current item."
   (interactive)
-  (cl-assert (org-srs-reviewing-p))
-  (if org-srs-item-wait-position
-      (progn
-        (goto-char org-srs-item-wait-position)
-        (setq org-srs-item-wait-position nil)
-        (org-srs-item-run-hooks-once 'org-srs-item-after-confirm-hook))
-    (message "This buffer contains no items that are presented for review.")))
+  (cl-macrolet ((cl-load-time-value (form &optional _read-only) (eval form t))) ; Bug? `cl-load-time-value' seems to malfunction regarding Emacs 30.1
+    (let ((flag-hook (cl-load-time-value (letrec ((hook (lambda () (remove-hook 'org-srs-item-after-confirm-hook hook t)))) hook))))
+      (if (member flag-hook org-srs-item-after-confirm-hook)
+          (org-srs-item-run-hook-once 'org-srs-item-after-confirm-hook)
+        (cl-assert (not (called-interactively-p 'any)))
+        (org-srs-item-run-hooks-once 'org-srs-item-before-confirm-hook)
+        (message (substitute-command-keys "Continue with \\[org-srs-item-confirm-command]"))
+        (add-hook 'org-srs-item-after-confirm-hook flag-hook nil t)))))
 
-(org-srs-property-defcustom org-srs-item-confirmation #'org-srs-item-confirmation-read-key
+(defun org-srs-item-confirm-cleanup-on-quit ()
+  (cl-loop for hook in '(org-srs-item-before-confirm-hook org-srs-item-after-confirm-hook)
+           when (local-variable-p hook)
+           when (boundp 'org-srs-review-rating)
+           do (cl-assert (null (symbol-value 'org-srs-review-rating)))
+           end and
+           do (org-srs-item-run-hooks-once hook)))
+
+(add-hook 'org-srs-review-before-rate-hook #'org-srs-item-confirm-cleanup-on-quit)
+
+(org-srs-property-defcustom org-srs-item-confirm #'org-srs-item-confirm-read-key
   "The method to confirm the current item and reveal its answer."
   :group 'org-srs
   :type 'function)
