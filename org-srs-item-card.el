@@ -106,7 +106,7 @@
     (org-srs-item-narrow)
     (org-srs-item-card-hide (cl-ecase side (front :back) (back :front)))
     (org-srs-item-add-hook-once 'org-srs-item-after-confirm-hook #'org-srs-item-card-show)
-    (apply (org-srs-item-confirmation) type args)))
+    (apply (org-srs-item-confirm) type args)))
 
 (cl-defmethod org-srs-item-new ((_type (eql 'card)) &rest args)
   (apply #'org-srs-item-new nil args))
