@@ -35,10 +35,10 @@
 (require 'org-srs-step)
 
 (cl-defmethod org-srs-algorithm-ensure ((_type (eql 'fsrs)) &rest args)
-  (apply #'make-fsrs-scheduler args))
+  (apply #'fsrs-make-scheduler args))
 
 (cl-defmethod org-srs-algorithm-repeat ((_fsrs fsrs-scheduler) (_args null))
-  (let ((card (make-fsrs-card)))
+  (let ((card (fsrs-make-card)))
     `((stability . ,(fsrs-card-stability card))
       (difficulty . ,(fsrs-card-difficulty card))
       (state . ,(fsrs-card-state card)))))
@@ -48,7 +48,7 @@
 (defun org-srs-algorithm-fsrs-ensure-card (object)
   (cl-etypecase object
     (fsrs-card object)
-    (list (cl-loop with card = (make-fsrs-card) and args = (copy-alist object)
+    (list (cl-loop with card = (fsrs-make-card) and args = (copy-alist object)
                    initially (setf (car (cl-find 'timestamp args :key #'car :from-end t)) 'last-review)
                    for slot in org-srs-algorithm-fsrs-card-slots
                    for cons = (assoc slot args)

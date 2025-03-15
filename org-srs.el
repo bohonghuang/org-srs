@@ -5,7 +5,7 @@
 ;; Author: Bohong Huang <bohonghuang@qq.com>
 ;; Maintainer: Bohong Huang <bohonghuang@qq.com>
 ;; Version: 1.0
-;; Package-Requires: ((emacs "27.1") (org "9.6") (fsrs "1.0"))
+;; Package-Requires: ((emacs "27.1") (org "9.6") (fsrs "5.0"))
 ;; URL: https://github.com/bohonghuang/org-srs
 ;; Keywords: memory, flashcards
 
