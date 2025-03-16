@@ -27,6 +27,7 @@
 (require 'cl-lib)
 (require 'cl-generic)
 (require 'pcase)
+(require 'custom)
 
 (require 'org)
 (require 'org-element)
@@ -36,6 +37,11 @@
 (require 'org-srs-review)
 (require 'org-srs-property)
 (require 'org-srs-query)
+
+(defgroup org-srs-review-cache nil
+  "Caching mechanism to improve scheduling performance in a review session."
+  :group 'org-srs-review
+  :prefix "org-srs-review-cache-")
 
 (cl-defstruct org-srs-review-cache
   (source nil :type t)
@@ -90,7 +96,7 @@
 
 This can increase the speed of retrieving the next review item
 from a large set of review items."
-  :group 'org-srs
+  :group 'org-srs-review-cache
   :type 'boolean)
 
 (define-advice org-srs-item-goto (:around (fun &rest args) org-srs-review-cache)
