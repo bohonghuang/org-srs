@@ -1,4 +1,4 @@
-;;; org-srs-item-card.el --- The flashcard item type -*- lexical-binding:t -*-
+;;; org-srs-item-card.el --- Flashcard item type -*- lexical-binding:t -*-
 
 ;; Copyright (C) 2024-2025 Bohong Huang
 
@@ -26,11 +26,18 @@
 
 (require 'cl-lib)
 (require 'cl-generic)
+(require 'custom)
 
 (require 'org)
 
+(require 'org-srs-property)
 (require 'org-srs-item)
 (require 'org-srs-review)
+
+(defgroup org-srs-item-card nil
+  "Flashcard type for review items."
+  :group 'org-srs-item
+  :prefix "org-srs-item-card-")
 
 (cl-defmethod org-srs-item-review ((_type null) &rest args)
   (apply #'org-srs-item-review 'card args))

@@ -31,6 +31,7 @@
 (require 'cl-lib)
 (require 'cl-generic)
 (require 'rx)
+(require 'custom)
 
 (require 'org)
 (require 'org-element)
@@ -39,6 +40,11 @@
 (require 'org-srs-property)
 (require 'org-srs-item)
 (require 'org-srs-item-cloze)
+
+(defgroup org-srs-embed nil
+  "Embedding and exporting review items to reduce their maintenance cost."
+  :group 'org-srs
+  :prefix "org-srs-embed-")
 
 (cl-declaim (special org-srs-embed-overlay-mode))
 
@@ -97,7 +103,7 @@
 ;;;###autoload
 (define-minor-mode org-srs-embed-overlay-mode
   "Minor mode for visualizing the embedded Org-srs entries using overlays."
-  :group 'org-srs
+  :group 'org-srs-embed
   (cl-assert (eq major-mode 'org-mode))
   (if org-srs-embed-overlay-mode (org-srs-embed-put-overlays) (org-srs-embed-remove-overlays)))
 
@@ -180,7 +186,7 @@
   (let ((org-srs-item-uncloze-function #'org-srs-embed-uncloze))
     (call-interactively #'org-srs-item-uncloze-dwim)))
 
-(cl-defun org-srs-embed-srs-file-relative (&optional (root (file-name-concat org-directory "org-srs")))
+(cl-defun org-srs-embed-export-file-relative (&optional (root (file-name-concat org-directory "org-srs")))
   (let ((file (buffer-file-name (current-buffer))))
     (cl-assert file)
     (let ((relative (file-relative-name file org-directory)))
@@ -189,9 +195,9 @@
         (make-directory (file-name-directory absolute) t)
         absolute))))
 
-(org-srs-property-defcustom org-srs-embed-srs-file #'org-srs-embed-srs-file-relative
+(org-srs-property-defcustom org-srs-embed-export-file #'org-srs-embed-export-file-relative
   "A variable that determines the file to which Org-srs entries are exported."
-  :group 'org-srs
+  :group 'org-srs-embed
   :type 'function)
 
 (defvar org-srs-embed-export-mode-map
@@ -204,7 +210,7 @@
 ;;;###autoload
 (define-minor-mode org-srs-embed-export-mode
   "Minor mode for special key bindings in an Org-srs entry export buffer."
-  :group 'org-srs
+  :group 'org-srs-embed
   (cl-assert (eq major-mode 'org-mode))
   (if org-srs-embed-export-mode
       (setq-local
@@ -258,12 +264,12 @@ The Org-srs entry export buffer is current and still narrowed.")
 
 (org-srs-property-defcustom org-srs-embed-export-item-type nil
   "Default item type used when exporting an Org-srs entry."
-  :group 'org-srs
+  :group 'org-srs-embed
   :type (cons 'choice (mapcar (apply-partially #'list 'const) (org-srs-item-types))))
 
 (org-srs-property-defcustom org-srs-embed-export-cloze-type 'one-by-one
   "Whether the exported cloze deletions will be reviewed all at once or one by one."
-  :group 'org-srs
+  :group 'org-srs-embed
   :type '(choice
           (const :tag "One-by-one" one-by-one)
           (const :tag "All-at-once" all-at-once)))
@@ -285,7 +291,7 @@ The Org-srs entry export buffer is current and still narrowed.")
          (window-configuration (current-window-configuration))
          (type (org-srs-embed-export-item-type))
          (cloze-updater (org-srs-embed-item-cloze-updater)))
-    (with-current-buffer (switch-to-buffer (find-file-noselect (funcall (org-srs-embed-srs-file))))
+    (with-current-buffer (switch-to-buffer (find-file-noselect (funcall (org-srs-embed-export-file))))
       (setf org-srs-embed-export-window-configuration window-configuration)
       (goto-char (point-max))
       (insert "* ")
@@ -407,8 +413,8 @@ The Org-srs entry export buffer is current and still narrowed.")
     (goto-char position)))
 
 (org-srs-property-defcustom org-srs-embed-export-headline (rx (* blank) (? "- ") (group (*? anychar)) (char "：:"))
-  "The default regexp used to extract the headlines of entries in batch export."
-  :group 'org-srs
+  "Default regexp used to extract the headlines of entries in batch export."
+  :group 'org-srs-embed
   :type 'regexp)
 
 ;;;###autoload

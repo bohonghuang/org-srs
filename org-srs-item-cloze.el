@@ -1,4 +1,4 @@
-;;; org-srs-item-cloze.el --- The cloze deletion item type -*- lexical-binding:t -*-
+;;; org-srs-item-cloze.el --- Cloze deletion item type -*- lexical-binding:t -*-
 
 ;; Copyright (C) 2024-2025 Bohong Huang
 
@@ -28,6 +28,7 @@
 (require 'cl-lib)
 (require 'cl-generic)
 (require 'rx)
+(require 'custom)
 
 (require 'org)
 (require 'org-element)
@@ -36,6 +37,11 @@
 (require 'org-srs-item)
 (require 'org-srs-review)
 (require 'org-srs-query)
+
+(defgroup org-srs-item-cloze nil
+  "Cloze type for review items."
+  :group 'org-srs-item
+  :prefix "org-srs-item-cloze-")
 
 (defconst org-srs-item-cloze-regexp
   (rx "{{" (group (*? not-newline))
@@ -52,8 +58,8 @@
                       (when-let ((hint (match-string 3))) (list hint))))))
 
 (org-srs-property-defcustom org-srs-item-cloze-visibility nil
-  "The visibility of cloze deletions other than the one currently being reviewed."
-  :group 'org-srs
+  "Visibility of cloze deletions other than the one currently being reviewed."
+  :group 'org-srs-item-cloze
   :type 'boolean)
 
 (defun org-srs-item-cloze-string-pad-width (string width)
@@ -111,7 +117,7 @@
 
 (org-srs-property-defcustom org-srs-item-cloze-centered-in-review-p nil
   "Non-nil means the cloze deletion in review will be centered in selected window."
-  :group 'org-srs
+  :group 'org-srs-item-cloze
   :type '(choice boolean function))
 
 (cl-defmethod org-srs-item-review ((type (eql 'cloze)) &rest args)
@@ -149,8 +155,8 @@
   (intern (substring (sha1 content) 0 7)))
 
 (org-srs-property-defcustom org-srs-item-cloze-identifier #'org-srs-item-cloze-sha1sum-short
-  "The identifier type used to distinguish cloze deletions."
-  :group 'org-srs
+  "Identifier type used to distinguish cloze deletions."
+  :group 'org-srs-item-cloze
   :type 'function)
 
 (defun org-srs-item-cloze-default (start end &optional hint)
@@ -317,8 +323,8 @@ delete, or modify a cloze deletion."
       (org-srs-log-hide-drawer))))
 
 (org-srs-property-defcustom org-srs-item-cloze-table-range "@<<$<<..@>$>"
-  "The default table range expression used for batch clozing."
-  :group 'org-srs
+  "Default table range expression used for batch clozing."
+  :group 'org-srs-item-cloze
   :type 'string)
 
 (cl-defun org-srs-item-cloze-table-fields (&optional (range '(1 . 1)))
