@@ -32,6 +32,11 @@
 (require 'org-srs-item)
 (require 'org-srs-time)
 
+(defgroup org-srs-query nil
+  "Search and query items matching specific predicates."
+  :group 'org-srs
+  :prefix "org-srs-query-")
+
 (cl-defgeneric org-srs-query-ensure-predicate (object &rest args)
   (:method ((name symbol) &rest args) (apply (intern (format "%s-%s" 'org-srs-query-predicate name)) args))
   (:method ((fun function) &rest args) (if args (lambda () (apply fun args)) fun)))
@@ -129,8 +134,8 @@
 
 (org-srs-property-defcustom org-srs-query-directory-file-regexp
   (rx bos (not ".") (*? anychar) ".org" (? ".gpg") eos)
-  "The file name regexp used to filter files to review in a directory."
-  :group 'org-srs
+  "File name regexp expression used to filter files to review in a directory."
+  :group 'org-srs-query
   :type 'regexp)
 
 (cl-defun org-srs-query-directory (predicate &optional (directory default-directory))
