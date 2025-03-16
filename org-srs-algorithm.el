@@ -25,12 +25,18 @@
 ;;; Code:
 
 (require 'cl-generic)
+(require 'custom)
 
 (require 'org-srs-property)
 
-(org-srs-property-defcustom org-srs-algorithm nil
-  "The spaced repetition algorithm used globally."
+(defgroup org-srs-algorithm nil
+  "Interface for spaced repetition algorithms."
   :group 'org-srs
+  :prefix "org-srs-algorithm")
+
+(org-srs-property-defcustom org-srs-algorithm nil
+  "Spaced repetition algorithm used for scheduling."
+  :group 'org-srs-algorithm
   :type 'sexp)
 
 (cl-defgeneric org-srs-algorithm-ensure (object &rest _args) object)

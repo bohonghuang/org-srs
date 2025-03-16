@@ -28,12 +28,18 @@
 (require 'cl-lib)
 (require 'cl-generic)
 (require 'rx)
+(require 'custom)
 
 (require 'org)
 (require 'org-element)
 
 (require 'org-srs-property)
 (require 'org-srs-log)
+
+(defgroup org-srs-item nil
+  "Interface for various types of review items."
+  :group 'org-srs
+  :prefix "org-srs-item-")
 
 (defconst org-srs-item-regexp (rx "srsitem:" (group (+ (not (any ?: blank control)))) (? "::" (group (+ (not (any blank control)))))))
 
@@ -208,8 +214,8 @@ the current item."
 (add-hook 'org-srs-review-before-rate-hook #'org-srs-item-confirm-cleanup-on-quit)
 
 (org-srs-property-defcustom org-srs-item-confirm #'org-srs-item-confirm-read-key
-  "The method to confirm the current item and reveal its answer."
-  :group 'org-srs
+  "Method to confirm the current item and reveal its answer."
+  :group 'org-srs-item
   :type 'function)
 
 (provide 'org-srs-item)

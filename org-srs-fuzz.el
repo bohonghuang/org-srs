@@ -27,6 +27,7 @@
 
 (require 'cl-lib)
 (cl-eval-when (:compile-toplevel :load-toplevel :execute) (cl-float-limits))
+(require 'custom)
 
 (require 'org-srs-property)
 (require 'org-srs-review)
@@ -34,16 +35,21 @@
 (require 'org-srs-table)
 (require 'org-srs-time)
 
+(defgroup org-srs-fuzz nil
+  "Fuzzing review intervals to balance due date distribution."
+  :group 'org-srs
+  :prefix "org-srs-fuzz-")
+
 (org-srs-property-defcustom org-srs-fuzz-ranges '(((2.5 :day) . 0.15)
                                                   ((7.0 :day) . 0.1)
                                                   ((20.0 :day) . 0.05))
   "Fuzzing factors corresponding to different interval ranges."
-  :group 'org-srs
+  :group 'org-srs-fuzz
   :type 'sexp)
 
 (org-srs-property-defcustom org-srs-fuzz-unit '(1 :day)
-  "The smallest unit of time change when fuzzing due timestamps."
-  :group 'org-srs
+  "Smallest unit of time change when fuzzing due timestamps."
+  :group 'org-srs-fuzz
   :type 'sexp)
 
 (cl-defun org-srs-fuzz-interval-default (interval &optional (unit (org-srs-fuzz-unit)))
@@ -53,7 +59,7 @@
 
 (org-srs-property-defcustom org-srs-fuzz-interval #'org-srs-fuzz-interval-default
   "Function used to calculate the interval for fuzzing from the base interval."
-  :group 'org-srs
+  :group 'org-srs-fuzz
   :type 'function)
 
 (cl-defun org-srs-fuzz-interval-round (interval &optional (unit (org-srs-fuzz-unit)))
