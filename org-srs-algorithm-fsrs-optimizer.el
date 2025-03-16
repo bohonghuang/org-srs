@@ -151,7 +151,11 @@ prompt the user to select the scope of items for optimization."
               (lambda (parameters)
                 (with-current-buffer (find-file-noselect file)
                   (save-excursion
-                    (add-file-local-variable 'org-srs-algorithm (cons 'fsrs parameters))))))))
+                    (if-let ((position (org-find-property "SRS_ALGORITHM")))
+                        (progn
+                          (goto-char position)
+                          (org-set-property "SRS_ALGORITHM" (prin1-to-string (cons 'fsrs parameters))))
+                      (add-file-local-variable 'org-srs-algorithm (cons 'fsrs parameters)))))))))
        (lambda (&rest args)
          (save-window-excursion (apply apply-local-variable-function args))
          (message "Optimization finished"))))))
