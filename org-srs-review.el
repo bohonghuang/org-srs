@@ -26,6 +26,7 @@
 
 (require 'cl-lib)
 (require 'cl-generic)
+(require 'custom)
 
 (require 'org-srs-property)
 (require 'org-srs-table)
@@ -33,6 +34,11 @@
 (require 'org-srs-query)
 (require 'org-srs-item)
 (require 'org-srs-time)
+
+(defgroup org-srs-review nil
+  "Scheduling and reviewing items within specified scopes."
+  :group 'org-srs
+  :prefix "org-srs-review-")
 
 (defvar org-srs-review-item-marker nil)
 
@@ -86,23 +92,23 @@
 (org-srs-review-define-rating-commands)
 
 (org-srs-property-defcustom org-srs-review-new-items-per-day 20
-  "The maximum number of new item to introduce in a day."
-  :group 'org-srs
+  "Maximum number of new item to introduce in a day."
+  :group 'org-srs-review
   :type 'natnum)
 
 (org-srs-property-defcustom org-srs-review-max-reviews-per-day 200
-  "The maximum number of review items to show in a day."
-  :group 'org-srs
+  "Maximum number of review items to show in a day."
+  :group 'org-srs-review
   :type 'natnum)
 
 (org-srs-property-defcustom org-srs-review-new-items-ignore-review-limit-p nil
   "Non-nil means new items will be shown regardless of the review limit."
-  :group 'org-srs
+  :group 'org-srs-review
   :type 'boolean)
 
 (org-srs-property-defcustom org-srs-review-learn-ahead-limit #'org-srs-time-tomorrow
-  "The maximum advance time for due items when no items are available for review."
-  :group 'org-srs
+  "Maximum advance time for due items when no items are available for review."
+  :group 'org-srs-review
   :type 'sexp)
 
 (cl-defun org-srs-review-learn-ahead-time (&optional (now (org-srs-time-now)))
@@ -147,21 +153,21 @@
     (const :tag "Due date" due-date)))
 
 (org-srs-property-defcustom org-srs-review-order-new-review 'review-first
-  "The relative display order between new items and review items."
-  :group 'org-srs
+  "Relative display order between new items and review items."
+  :group 'org-srs-review
   :type `(choice
           (const :tag "New first" new-first)
           (const :tag "Review first" review-first)
           . ,org-srs-review-orders))
 
 (org-srs-property-defcustom org-srs-review-order-new 'position
-  "The display order of new items."
-  :group 'org-srs
+  "Display order of new items."
+  :group 'org-srs-review
   :type `(choice . ,org-srs-review-orders))
 
 (org-srs-property-defcustom org-srs-review-order-review 'due-date
-  "The display order of review items."
-  :group 'org-srs
+  "Display order of review items."
+  :group 'org-srs-review
   :type `(choice . ,org-srs-review-orders))
 
 (cl-defun org-srs-review-next-due-item (&optional (source (current-buffer)))
@@ -214,7 +220,7 @@
 
 (org-srs-property-defcustom org-srs-review-learn-ahead-offset-time-p #'org-srs-time-today-p
   "Whether to offset the scheduled time by the time difference of learning ahead."
-  :group 'org-srs
+  :group 'org-srs-review
   :type '(choice (const :tag "Yes" t)
                  (const :tag "No" nil)
                  (const :tag "If scheduled for today" org-srs-time-today-p)))

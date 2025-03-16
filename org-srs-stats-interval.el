@@ -27,6 +27,7 @@
 (require 'cl-lib)
 (require 'cl-generic)
 (require 'eieio)
+(require 'custom)
 
 (require 'org-srs-review)
 (require 'org-srs-review-cache)

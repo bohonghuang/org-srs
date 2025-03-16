@@ -26,6 +26,7 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'custom)
 
 (require 'org-srs-property)
 (require 'org-srs-review)
@@ -33,14 +34,19 @@
 (require 'org-srs-table)
 (require 'org-srs-time)
 
-(org-srs-property-defcustom org-srs-step-learning-steps '((1 :minute) (10 :minute))
-  "The number of learning repetitions, and the delay between them."
+(defgroup org-srs-step nil
+  "Stepped learning mechanism to ensure retention before reviews."
   :group 'org-srs
+  :prefix "org-srs-step-")
+
+(org-srs-property-defcustom org-srs-step-learning-steps '((1 :minute) (10 :minute))
+  "Number of learning repetitions, and the delay between them."
+  :group 'org-srs-step
   :type 'sexp)
 
 (org-srs-property-defcustom org-srs-step-relearning-steps '((10 :minute))
   "Same as variable `org-srs-step-learning-steps', but for items being relearned."
-  :group 'org-srs
+  :group 'org-srs-step
   :type 'sexp)
 
 (defun org-srs-step-list ()
