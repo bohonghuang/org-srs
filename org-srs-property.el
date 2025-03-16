@@ -27,10 +27,17 @@
 
 (require 'cl-lib)
 (require 'subr-x)
+(require 'custom)
 (require 'cus-edit)
 
 (require 'org)
 (require 'org-element)
+
+(defgroup org-srs nil
+  "Spaced repetition system inside Org-mode."
+  :group 'org
+  :prefix "org-srs-"
+  :link '(url-link "https://github.com/bohonghuang/org-srs"))
 
 (defun org-srs-property-plist-at-point ()
   (save-excursion
