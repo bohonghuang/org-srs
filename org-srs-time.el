@@ -27,8 +27,14 @@
 (require 'cl-lib)
 (require 'rx)
 (require 'parse-time)
+(require 'custom)
 
 (require 'org-srs-property)
+
+(defgroup org-srs-time nil
+  "Time(stamp) facilities."
+  :group 'org-srs
+  :prefix "org-srs-time-")
 
 (defconst org-srs-time-units '((:sec . 1) (:minute . 60) (:hour . 3600) (:day . 86400)))
 
@@ -55,8 +61,8 @@
     (cl-values (encode-time (cl-fill time 0 :start 0 :end 3)) (cl-mapcan #'list hms '(:sec :minute :hour)))))
 
 (org-srs-property-defcustom org-srs-time-start-of-next-day '(4 :hour)
-  "The offset used to calculate the start time of the next day."
-  :group 'org-srs
+  "Offset used to calculate the start time of the next day."
+  :group 'org-srs-time
   :type 'sexp)
 
 (defvar org-srs-time-now #'current-time)
