@@ -75,7 +75,16 @@
                  (cl-return-from ,name (read ,value))))
              ,name))))))
 
-(cl-defun org-srs-property-call-with-saved-properties (thunk &optional (properties (mapcar #'car (custom-group-members 'org-srs nil))))
+(cl-defun org-srs-property-group-members (&optional (group 'org-srs))
+  (cl-loop for (member type) in (custom-group-members group nil)
+           if (eq type 'custom-variable)
+           collect member
+           else if (eq type 'custom-group)
+           nconc (org-srs-property-group-members member)
+           else
+           do (cl-assert nil)))
+
+(cl-defun org-srs-property-call-with-saved-properties (thunk &optional (properties (org-srs-property-group-members)))
   (cl-destructuring-bind (property . properties) properties
     (funcall
      property (funcall property)
@@ -96,7 +105,7 @@
     (`(,(and (pred symbolp) var) . ,rest)
      `(org-srs-property-call-with-saved-properties (lambda () (org-srs-property-let ,rest . ,body)) '(,var)))
     ((and (pred symbolp) (or (and 't (let group 'org-srs)) group))
-     `(org-srs-property-call-with-saved-properties (lambda () . ,body) (mapcar #'car (custom-group-members ',group nil))))))
+     `(org-srs-property-call-with-saved-properties (lambda () . ,body) (org-srs-property-group-members ',group)))))
 
 (provide 'org-srs-property)
 ;;; org-srs-property.el ends here
