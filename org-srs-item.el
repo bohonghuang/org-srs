@@ -194,14 +194,13 @@ This command is intended to be used only when customizable option
 `org-srs-item-confirm' is set to `org-srs-item-confirm-command' for
 the current item."
   (interactive)
-  (cl-macrolet ((cl-load-time-value (form &optional _read-only) (eval form t))) ; Bug? `cl-load-time-value' seems to malfunction regarding Emacs 30.1
-    (let ((flag-hook (cl-load-time-value (letrec ((hook (lambda () (remove-hook 'org-srs-item-after-confirm-hook hook t)))) hook))))
-      (if (member flag-hook org-srs-item-after-confirm-hook)
-          (org-srs-item-run-hook-once 'org-srs-item-after-confirm-hook)
-        (cl-assert (not (called-interactively-p 'any)))
-        (org-srs-item-run-hooks-once 'org-srs-item-before-confirm-hook)
-        (message (substitute-command-keys "Continue with \\[org-srs-item-confirm-command]"))
-        (add-hook 'org-srs-item-after-confirm-hook flag-hook nil t)))))
+  (let ((flag-hook (eval-when-compile (letrec ((hook (lambda () (remove-hook 'org-srs-item-after-confirm-hook hook t)))) hook))))
+    (if (member flag-hook org-srs-item-after-confirm-hook)
+        (org-srs-item-run-hook-once 'org-srs-item-after-confirm-hook)
+      (cl-assert (not (called-interactively-p 'any)))
+      (org-srs-item-run-hooks-once 'org-srs-item-before-confirm-hook)
+      (message (substitute-command-keys "Continue with \\[org-srs-item-confirm-command]"))
+      (add-hook 'org-srs-item-after-confirm-hook flag-hook nil t))))
 
 (defun org-srs-item-confirm-cleanup-on-quit ()
   (cl-loop for hook in '(org-srs-item-before-confirm-hook org-srs-item-after-confirm-hook)
