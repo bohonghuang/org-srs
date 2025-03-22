@@ -69,7 +69,7 @@
 (defun org-srs-query-predicate-new ()
   (lambda ()
     (save-excursion
-      (when (re-search-forward org-srs-log-latest-timestamp-regexp (org-srs-item-end))
+      (when (re-search-forward org-srs-log-latest-timestamp-regexp (org-srs-table-end))
         (forward-line -1)
         (or (org-at-table-hline-p) (string-empty-p (org-srs-table-field 'rating)))))))
 
@@ -79,7 +79,7 @@
      (to (unless fromp (org-srs-time-tomorrow))))
   (lambda ()
     (save-excursion
-      (when (re-search-forward org-srs-log-latest-timestamp-regexp (org-srs-item-end))
+      (when (re-search-forward org-srs-log-latest-timestamp-regexp (org-srs-table-end))
         (forward-line -1)
         (unless (org-at-table-hline-p)
           (let ((time (org-srs-timestamp-time (org-srs-table-field 'timestamp))))
@@ -88,7 +88,7 @@
 (cl-defun org-srs-query-predicate-due (&optional (now (org-srs-time-now)))
   (lambda ()
     (save-excursion
-      (when (re-search-forward org-srs-log-latest-timestamp-regexp (org-srs-item-end))
+      (when (re-search-forward org-srs-log-latest-timestamp-regexp (org-srs-table-end))
         (time-less-p (org-srs-timestamp-time (match-string 2)) now)))))
 
 (cl-defun org-srs-query-predicate-learned
@@ -97,8 +97,8 @@
      (to (unless fromp (org-srs-time-tomorrow))))
   (lambda ()
     (save-excursion
-      (when-let ((time (cl-loop with end = (org-srs-item-end)
-                                initially (goto-char (org-srs-table-begin)) (org-table-goto-line 2)
+      (when-let ((time (cl-loop with end = (progn (goto-char (org-srs-table-begin)) (org-table-end))
+                                initially (org-table-goto-line 2)
                                 for previous-rating = "" then current-rating
                                 for current-rating = (org-srs-table-field 'rating)
                                 for current-timestamp = (org-srs-table-field 'timestamp)

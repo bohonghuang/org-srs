@@ -79,13 +79,21 @@
     (table (org-element-end element))
     (table-row (org-srs-table-element-end (org-element-parent element)))))
 
-(cl-defun org-srs-table-begin (&optional (element (org-element-at-point-no-context)))
-  (save-excursion
-    (goto-char (org-srs-table-element-begin element))
-    (re-search-forward org-table-line-regexp (org-srs-table-element-end element))
-    (pos-bol)))
+(defun org-srs-table-begin ()
+  (if (looking-at-p org-table-line-regexp)
+      (org-table-begin)
+    (save-excursion
+      (unless (and (looking-at-p org-keyword-regexp) (not (looking-at-p org-TBLFM-regexp)))
+        (goto-char (org-srs-table-element-begin)))
+      (re-search-forward org-table-line-regexp)
+      (pos-bol))))
 
-(defalias 'org-srs-table-end 'org-srs-table-element-end)
+(defun org-srs-table-end ()
+  (if (looking-at-p org-table-line-regexp)
+      (org-table-end)
+    (save-excursion
+      (goto-char (org-srs-table-begin))
+      (org-table-end))))
 
 (defconst org-srs-table-starred-line-regexp (rx bol (* blank) "|" (* blank) (group "*") (* blank) "|"))
 
