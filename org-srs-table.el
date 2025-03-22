@@ -48,11 +48,13 @@
 (org-srs-log-define-org-element-bound-functions)
 
 (defun org-srs-table-column-name-number-alist ()
-  (org-table-analyze)
-  (cl-loop for (name . column-number) in org-table-column-names
-           for number from 2
-           do (cl-assert (string-equal (prin1-to-string number) column-number))
-           collect (cons (intern name) number)))
+  (cl-loop for name in (when (save-excursion
+                               (goto-char (org-srs-table-begin))
+                               (re-search-forward "^[ \t]*| *! *\\(|.*\\)" (org-srs-table-end) t))
+                         (org-split-string (match-string 1) " *| *"))
+           for column from 2
+           when (string-match-p "\\`[a-zA-Z][_a-zA-Z0-9]*\\'" name)
+           collect (cons (intern name) column)))
 
 (defconst org-srs-table-readable-field-regexp (rx bos (or (and ":" (+ anychar)) (and (? "-") (+ digit) (? "." (* digit)))) eos))
 
@@ -103,11 +105,12 @@
     (goto-char (match-beginning 1))))
 
 (cl-defun org-srs-table-current-line (&optional (columns (org-srs-table-column-name-number-alist)))
-  (let ((line (org-table-current-line)))
-    (cl-loop for (name . number) in columns
-             for field in (org-table-get-range (format "@%d$%d..@%d$%d" line (1+ 1) line (1+ (length columns))))
-             unless (string-empty-p field)
-             collect (cons name (org-srs-table-ensure-read-field field)))))
+  (org-table-analyze)
+  (cl-loop with line = (org-table-current-line)
+           for (name . number) in columns
+           for field in (org-table-get-range (format "@%d$%d..@%d$%d" line (1+ 1) line (1+ (length columns))))
+           unless (string-empty-p field)
+           collect (cons name (org-srs-table-ensure-read-field field))))
 
 (cl-defun org-srs-table-starred-line (&optional (offset 0))
   (save-excursion
