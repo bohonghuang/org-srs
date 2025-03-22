@@ -61,6 +61,7 @@
 (defalias 'org-srs-review-run-hooks-once 'org-srs-item-run-hooks-once)
 
 (cl-defun org-srs-review-rate (rating &optional (position org-srs-review-item-marker))
+  (cl-assert (not buffer-read-only) nil "Buffer %S must be editable" (current-buffer))
   (let ((org-srs-review-rating rating))
     (org-srs-review-run-hooks-once 'org-srs-review-before-rate-hook))
   (save-excursion
@@ -261,7 +262,6 @@ to review."
                                ((eql t) t))
                          (setf (org-srs-table-field 'timestamp) due-timestamp))))))))
            75))
-        (cl-assert (not buffer-read-only) nil "Buffer %S must be editable." (current-buffer))
         (cl-assert (not (local-variable-p 'org-srs-review-item-marker)))
         (cl-assert (null org-srs-review-item-marker))
         (setq-local org-srs-review-item-marker (point-marker))
