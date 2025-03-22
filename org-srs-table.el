@@ -30,6 +30,22 @@
 
 (require 'org)
 (require 'org-table)
+(require 'org-element)
+
+(defmacro org-srs-log-define-org-element-bound-functions ()
+  `(progn
+     ,@(unless (fboundp 'org-element-begin)
+         `((defsubst org-element-begin (node)
+             (org-element-property :begin node))
+           (defsubst \(setf\ org-element-begin\) (value node)
+             (setf (org-element-property :begin node) value))))
+     ,@(unless (fboundp 'org-element-end)
+         `((defsubst org-element-end (node)
+             (org-element-property :end node))
+           (defsubst \(setf\ org-element-end\) (value node)
+             (setf (org-element-property :end node) value))))))
+
+(org-srs-log-define-org-element-bound-functions)
 
 (defun org-srs-table-column-name-number-alist ()
   (org-table-analyze)
@@ -53,11 +69,31 @@
                             unless (string-empty-p field)
                             collect (cons name (org-srs-table-ensure-read-field field)))))
 
+(defun org-srs-table-element-begin ()
+  (let ((element (org-element-at-point)))
+    (cl-ecase (car element)
+      (table (org-element-begin element))
+      (table-row (save-excursion (goto-char (org-table-begin)) (org-srs-table-element-begin))))))
+
+(defun org-srs-table-element-end ()
+  (let ((element (org-element-at-point)))
+    (cl-ecase (car element)
+      (table (org-element-end element))
+      (table-row (save-excursion (goto-char (org-table-begin)) (org-srs-table-element-end))))))
+
+(defun org-srs-table-begin ()
+  (save-excursion
+    (goto-char (org-srs-table-element-begin))
+    (re-search-forward org-table-line-regexp (org-srs-table-element-end))
+    (pos-bol)))
+
+(defalias 'org-srs-table-end 'org-srs-table-element-end)
+
 (defconst org-srs-table-starred-line-regexp (rx bol (* blank) "|" (* blank) (group "*") (* blank) "|"))
 
 (defun org-srs-table-goto-starred-line ()
-  (prog2 (goto-char (1+ (org-table-begin)))
-      (re-search-forward org-srs-table-starred-line-regexp (org-table-end))
+  (prog2 (goto-char (org-srs-table-begin))
+      (re-search-forward org-srs-table-starred-line-regexp (org-srs-table-end))
     (goto-char (match-beginning 1))))
 
 (cl-defun org-srs-table-current-line (&optional (columns (org-srs-table-column-name-number-alist)))
@@ -125,15 +161,15 @@
 (cl-defun org-srs-table-call-with-temp-buffer-1 (thunk
                                                  &optional
                                                  (table (buffer-substring-no-properties
-                                                         (org-table-begin)
-                                                         (org-table-end)))
-                                                 (point (- (point) (org-table-begin))))
+                                                         (org-srs-table-begin)
+                                                         (org-srs-table-end)))
+                                                 (point (- (point) (org-srs-table-begin))))
   (with-temp-buffer
     (insert table)
     (let ((org-mode-hook nil)) (org-mode))
-    (goto-char (+ (org-table-begin) point))
+    (goto-char (+ (org-srs-table-begin) point))
     (funcall thunk)
-    (let* ((begin (org-table-begin)) (end (org-table-end)) (point (- (point) begin)))
+    (let* ((begin (org-srs-table-begin)) (end (org-table-end)) (point (- (point) begin)))
       (cl-values (buffer-substring-no-properties begin end) point))))
 
 (cl-defmacro org-srs-table-with-temp-buffer-1 (&rest body)
@@ -141,7 +177,7 @@
   `(org-srs-table-call-with-temp-buffer-1 (lambda () . ,body)))
 
 (defun org-srs-table-call-with-temp-buffer (thunk)
-  (let* ((begin (org-table-begin)) (end (org-table-end)) (point (- (point) begin))
+  (let* ((begin (org-srs-table-begin)) (end (org-srs-table-end)) (point (- (point) begin))
          (table (buffer-substring-no-properties begin end)))
     (cl-multiple-value-bind (table point) (org-srs-table-call-with-temp-buffer-1 thunk table point)
       (delete-region begin end)

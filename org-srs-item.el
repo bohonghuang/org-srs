@@ -41,6 +41,9 @@
   :group 'org-srs
   :prefix "org-srs-item-")
 
+(defalias 'org-srs-item-begin 'org-srs-log-begin)
+(defalias 'org-srs-item-end 'org-srs-log-end)
+
 (defconst org-srs-item-regexp (rx "srsitem:" (group (+ (not (any ?: blank control)))) (? "::" (group (+ (not (any blank control)))))))
 
 (defun org-srs-item-name ()
@@ -64,6 +67,12 @@
   (newline-and-indent)
   (org-srs-log-insert))
 
+(defun org-srs-item-link-search (s)
+  (save-excursion
+    (goto-char (point-min))
+    (re-search-forward (rx bol "#+NAME:" (+ blank) (literal s) eol)))
+  (goto-char (match-beginning 0)))
+
 (cl-defun org-srs-item-goto (item &optional (id (org-id-get)) (buffer (current-buffer)))
   (let ((org-link-search-must-match-exact-headline t))
     (unless (eq buffer (current-buffer))
@@ -71,8 +80,7 @@
       (switch-to-buffer buffer nil t)
       (cl-assert (eq (window-buffer) buffer)))
     (cl-assert (eq (current-buffer) buffer))
-    (org-link-search (org-srs-item-link item id))
-    (end-of-line)))
+    (org-srs-item-link-search (org-srs-item-link item id))))
 
 (defun org-srs-item-exists-p (item &rest args)
   (save-excursion
@@ -83,7 +91,7 @@
 (cl-defun org-srs-item-due-timestamp (&optional (item nil itemp) &rest args)
   (save-window-excursion
     (when itemp (apply #'org-srs-item-goto item args))
-    (re-search-forward org-srs-log-latest-timestamp-regexp (org-table-end))
+    (re-search-forward org-srs-log-latest-timestamp-regexp (org-srs-item-end))
     (match-string 2)))
 
 (defun org-srs-item-repeat (item rating)
@@ -98,12 +106,9 @@
 
 (defun org-srs-item-at-point ()
   (save-excursion
-    (when (or (org-at-table-p) (looking-at-p org-srs-item-header-regexp) (looking-back org-srs-item-header-regexp (pos-bol)))
-      (goto-char (org-table-begin))
-      (let ((element (org-element-at-point)))
-        (goto-char (org-element-begin element))
-        (when (re-search-forward org-srs-item-header-regexp (org-element-end element) t)
-          (org-srs-item-from-match-data))))))
+    (goto-char (org-srs-item-begin))
+    (when (re-search-forward org-srs-item-header-regexp (org-srs-item-end) t)
+      (org-srs-item-from-match-data))))
 
 (cl-defun org-srs-item-bounds (&optional (item (cl-nth-value 0 (org-srs-item-at-point))) &rest args)
   (save-excursion
@@ -147,8 +152,6 @@
   "Create a review item in the current entry."
   (interactive)
   (require 'org-srs)
-  (cl-assert (buffer-file-name (buffer-base-buffer))
-             nil "Buffer should be visiting a file")
   (org-srs-item-new-interactively
    (prog1 (read (completing-read "Item type: " (org-srs-item-types) nil t))
      (org-id-get-create))))
