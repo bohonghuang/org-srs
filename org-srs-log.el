@@ -34,21 +34,6 @@
 (require 'org-srs-time)
 (require 'org-srs-table)
 
-(defmacro org-srs-log-define-org-element-bound-functions ()
-  `(progn
-     ,@(unless (fboundp 'org-element-begin)
-         `((defsubst org-element-begin (node)
-             (org-element-property :begin node))
-           (defsubst \(setf\ org-element-begin\) (value node)
-             (setf (org-element-property :begin node) value))))
-     ,@(unless (fboundp 'org-element-end)
-         `((defsubst org-element-end (node)
-             (org-element-property :end node))
-           (defsubst \(setf\ org-element-end\) (value node)
-             (setf (org-element-property :end node) value))))))
-
-(org-srs-log-define-org-element-bound-functions)
-
 (defun org-srs-log-insert ()
   (let ((initargs (org-srs-algorithm-repeat (org-srs-algorithm-current) nil)))
     (org-srs-table-from-alist
@@ -114,6 +99,9 @@
     (goto-char position)
     (org-srs-log-beginning-of-drawer)
     (org-fold-hide-drawer-toggle t)))
+
+(defalias 'org-srs-log-begin 'org-srs-table-element-begin)
+(defalias 'org-srs-log-end 'org-srs-table-element-end)
 
 (provide 'org-srs-log)
 ;;; org-srs-log.el ends here
