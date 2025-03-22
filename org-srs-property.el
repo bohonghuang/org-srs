@@ -33,6 +33,8 @@
 (require 'org)
 (require 'org-element)
 
+(require 'org-srs-table)
+
 (defgroup org-srs nil
   "Spaced repetition system inside Org-mode."
   :group 'org
@@ -40,13 +42,11 @@
   :link '(url-link "https://github.com/bohonghuang/org-srs"))
 
 (defun org-srs-property-plist-at-point ()
-  (save-excursion
-    (when (org-at-table-p)
-      (goto-char (org-table-begin)))
-    (let ((element (org-element-at-point)))
-      (when (eq (org-element-type element) 'table)
-        (when-let ((property (org-element-property :attr_srs element)))
-          (read (concat "(" (cl-reduce (lambda (acc it) (concat acc " " it)) property) ")")))))))
+  (ignore-error error
+    (save-excursion
+      (goto-char (org-srs-table-element-begin))
+      (when-let ((property (org-element-property :attr_srs (org-element-at-point))))
+        (read (concat "(" (cl-reduce (lambda (acc it) (concat acc " " it)) property) ")"))))))
 
 (defmacro org-srs-property-defcustom (name &rest defcustom-args)
   (declare (doc-string 3) (indent defun))
