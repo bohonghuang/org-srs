@@ -157,10 +157,12 @@ from a large set of review items."
                         (org-srs-review-cache-queries cache)
                         (cl-loop with tomorrow-time = (org-srs-time-tomorrow)
                                  for (predicate . items) in (org-srs-review-cache-queries cache)
-                                 for all-satisfied-p = (funcall (org-srs-query-predicate predicate))
-                                 for rest-satisfied-p = (pcase predicate
-                                                          (`(and ,(or 'due `(due . ,_)) . ,rest-predicates)
-                                                           (funcall (org-srs-query-predicate `(and . ,rest-predicates)))))
+                                 for (all-satisfied-p . rest-satisfied-p)
+                                 = (pcase predicate
+                                     (`(and ,(and (or 'due `(due . ,_)) first-predicate) . ,rest-predicates)
+                                      (when (funcall (org-srs-query-predicate `(and . ,rest-predicates)))
+                                        (cons (funcall (org-srs-query-predicate first-predicate)) t)))
+                                     (_ (cons (funcall (org-srs-query-predicate predicate)) nil)))
                                  collect (cons predicate (funcall (if all-satisfied-p #'cl-adjoin #'cl-delete)
                                                                   item items :test #'equal))
                                  when (cl-plusp (org-srs-time-difference tomorrow-time due-time))
