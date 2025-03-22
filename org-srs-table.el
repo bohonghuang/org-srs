@@ -69,22 +69,20 @@
                             unless (string-empty-p field)
                             collect (cons name (org-srs-table-ensure-read-field field)))))
 
-(defun org-srs-table-element-begin ()
-  (let ((element (org-element-at-point)))
-    (cl-ecase (car element)
-      (table (org-element-begin element))
-      (table-row (save-excursion (goto-char (org-table-begin)) (org-srs-table-element-begin))))))
+(cl-defun org-srs-table-element-begin (&optional (element (org-element-at-point-no-context)))
+  (cl-ecase (car element)
+    (table (org-element-begin element))
+    (table-row (org-srs-table-element-begin (org-element-parent element)))))
 
-(defun org-srs-table-element-end ()
-  (let ((element (org-element-at-point)))
-    (cl-ecase (car element)
-      (table (org-element-end element))
-      (table-row (save-excursion (goto-char (org-table-begin)) (org-srs-table-element-end))))))
+(cl-defun org-srs-table-element-end (&optional (element (org-element-at-point-no-context)))
+  (cl-ecase (car element)
+    (table (org-element-end element))
+    (table-row (org-srs-table-element-end (org-element-parent element)))))
 
-(defun org-srs-table-begin ()
+(cl-defun org-srs-table-begin (&optional (element (org-element-at-point-no-context)))
   (save-excursion
-    (goto-char (org-srs-table-element-begin))
-    (re-search-forward org-table-line-regexp (org-srs-table-element-end))
+    (goto-char (org-srs-table-element-begin element))
+    (re-search-forward org-table-line-regexp (org-srs-table-element-end element))
     (pos-bol)))
 
 (defalias 'org-srs-table-end 'org-srs-table-element-end)
