@@ -91,7 +91,7 @@
 (cl-defun org-srs-item-due-timestamp (&optional (item nil itemp) &rest args)
   (save-window-excursion
     (when itemp (apply #'org-srs-item-goto item args))
-    (re-search-forward org-srs-log-latest-timestamp-regexp (org-srs-item-end))
+    (re-search-forward org-srs-log-latest-timestamp-regexp (org-srs-table-end))
     (match-string 2)))
 
 (defun org-srs-item-repeat (item rating)
