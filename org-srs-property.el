@@ -45,7 +45,7 @@
   (ignore-error error
     (save-excursion
       (goto-char (org-srs-table-element-begin))
-      (when-let ((property (org-element-property :attr_srs (org-element-at-point))))
+      (when-let ((property (org-element-property :attr_srs (org-element-at-point-no-context))))
         (read (concat "(" (cl-reduce (lambda (acc it) (concat acc " " it)) property) ")"))))))
 
 (defmacro org-srs-property-defcustom (name &rest defcustom-args)
