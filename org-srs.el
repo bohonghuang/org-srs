@@ -41,8 +41,10 @@
 (require 'org-srs-query)
 (require 'org-srs-review)
 (require 'org-srs-review-cache)
-(require 'org-srs-step)
-(require 'org-srs-fuzz)
+(require 'org-srs-schedule)
+(require 'org-srs-schedule-offset)
+(require 'org-srs-schedule-step)
+(require 'org-srs-schedule-fuzz)
 
 (require 'org-srs-algorithm-fsrs)
 (setf (default-value 'org-srs-algorithm) (or (default-value 'org-srs-algorithm) 'fsrs))

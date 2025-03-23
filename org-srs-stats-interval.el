@@ -65,12 +65,14 @@
             (insert "* HEADLINE"))
           (defvar cl--random-state)
           (let ((cl--random-state (org-srs-stats-interval-deep-copy cl--random-state)))
-            (org-srs-log-repeat rating)
             (defvar org-srs-review-rating)
             (defvar org-srs-review-item-marker)
             (let ((org-srs-review-rating rating)
                   (org-srs-review-item-marker (point-marker)))
+              (cl-assert (not (local-variable-p 'org-srs-review-before-rate-hook)))
               (cl-assert (not (local-variable-p 'org-srs-review-after-rate-hook)))
+              (run-hooks 'org-srs-review-before-rate-hook)
+              (org-srs-log-repeat rating)
               (run-hooks 'org-srs-review-after-rate-hook))
             (cl-return-from org-srs-stats-interval-1
               (org-srs-timestamp-difference
