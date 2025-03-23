@@ -55,26 +55,27 @@
   (org-srs-property-let ((org-srs-review-cache-query-p nil))
     (defvar org-srs-time-now)
     (let ((org-srs-time-now (cl-constantly (org-srs-time-now))))
-      (org-srs-table-with-temp-buffer-1
-        (make-local-variable 'org-srs-review-item-marker)
-        (save-excursion
-          (goto-char (point-min))
-          (open-line 1)
-          (insert "* HEADLINE"))
-        (defvar cl--random-state)
-        (let ((cl--random-state (org-srs-stats-interval-deep-copy cl--random-state)))
-          (org-srs-log-repeat rating)
-          (defvar org-srs-review-rating)
-          (defvar org-srs-review-item-marker)
-          (let ((org-srs-review-rating rating)
-                (org-srs-review-item-marker (point-marker)))
-            (cl-assert (not (local-variable-p 'org-srs-review-after-rate-hook)))
-            (run-hooks 'org-srs-review-after-rate-hook))
-          (org-srs-table-goto-starred-line)
-          (cl-return-from org-srs-stats-interval-1
-            (org-srs-timestamp-difference
-             (org-srs-table-field 'timestamp)
-             (org-srs-timestamp-now))))))))
+      (save-excursion
+        (org-srs-table-goto-starred-line)
+        (org-srs-table-with-temp-buffer-1
+          (make-local-variable 'org-srs-review-item-marker)
+          (save-excursion
+            (goto-char (point-min))
+            (open-line 1)
+            (insert "* HEADLINE"))
+          (defvar cl--random-state)
+          (let ((cl--random-state (org-srs-stats-interval-deep-copy cl--random-state)))
+            (org-srs-log-repeat rating)
+            (defvar org-srs-review-rating)
+            (defvar org-srs-review-item-marker)
+            (let ((org-srs-review-rating rating)
+                  (org-srs-review-item-marker (point-marker)))
+              (cl-assert (not (local-variable-p 'org-srs-review-after-rate-hook)))
+              (run-hooks 'org-srs-review-after-rate-hook))
+            (cl-return-from org-srs-stats-interval-1
+              (org-srs-timestamp-difference
+               (org-srs-item-due-timestamp)
+               (org-srs-timestamp-now)))))))))
 
 (defun org-srs-stats-interval (rating)
   (org-srs-property-let t

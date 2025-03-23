@@ -119,13 +119,11 @@
 (defun org-srs-step-update-due-timestamp ()
   (if (boundp 'org-srs-review-rating)
       (when (symbol-value 'org-srs-review-rating)
-        (save-excursion
-          (goto-char org-srs-review-item-marker)
-          (org-srs-property-let (org-srs-step-learning-steps org-srs-step-relearning-steps)
-            (org-srs-table-with-temp-buffer
-              (org-srs-table-goto-starred-line)
-              (setf (org-srs-table-field 'timestamp) (org-srs-step-due-timestamp))))
-          (org-srs-log-hide-drawer)))
+        (goto-char org-srs-review-item-marker)
+        (org-srs-table-goto-starred-line)
+        (org-srs-property-let (org-srs-step-learning-steps org-srs-step-relearning-steps)
+          (org-srs-table-with-temp-buffer
+            (setf (org-srs-table-field 'timestamp) (org-srs-step-due-timestamp)))))
     (setf (org-srs-table-field 'timestamp) (org-srs-step-due-timestamp))))
 
 (add-hook 'org-srs-review-after-rate-hook #'org-srs-step-update-due-timestamp 50)

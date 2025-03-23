@@ -173,6 +173,7 @@
                                                          (org-srs-table-begin)
                                                          (org-srs-table-end)))
                                                  (point (- (point) (org-srs-table-begin))))
+  (cl-assert (not (cl-minusp point)))
   (with-temp-buffer
     (insert table)
     (let ((org-mode-hook nil)) (org-mode))
@@ -188,6 +189,7 @@
 (defun org-srs-table-call-with-temp-buffer (thunk)
   (let* ((begin (org-srs-table-begin)) (end (org-srs-table-end)) (point (- (point) begin))
          (table (buffer-substring-no-properties begin end)))
+    (cl-assert (>= (point) begin))
     (cl-multiple-value-bind (table point) (org-srs-table-call-with-temp-buffer-1 thunk table point)
       (delete-region begin end)
       (insert table)
