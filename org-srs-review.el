@@ -71,8 +71,7 @@
      (time-less-p
       (org-srs-timestamp-time (org-srs-table-field 'timestamp))
       (org-srs-time-tomorrow)))
-    (org-srs-item-repeat (cl-nth-value 0 (org-srs-item-at-point)) rating)
-    (org-srs-log-hide-drawer))
+    (org-srs-item-repeat (cl-nth-value 0 (org-srs-item-at-point)) rating))
   (let ((org-srs-review-rating rating))
     (org-srs-review-run-hooks-once 'org-srs-review-after-rate-hook)))
 
@@ -273,9 +272,7 @@ to review."
            (kill-local-variable 'org-srs-review-item-marker)
            (cl-assert (null org-srs-review-item-marker)))
          99)
-        (org-srs-log-hide-drawer org-srs-review-item-marker)
         (apply #'org-srs-item-review (car item) (cdr item))
-        (org-srs-log-hide-drawer org-srs-review-item-marker)
         (org-srs-review-add-hook-once
          'org-srs-review-after-rate-hook
          (lambda () (when org-srs-review-rating (org-srs-review-start source)))
