@@ -245,22 +245,6 @@ to review."
   (if-let ((item-args (let ((org-srs-reviewing-p t)) (org-srs-review-next-due-item source))))
       (let ((item (cl-first item-args)) (org-srs-reviewing-p t))
         (apply #'org-srs-item-goto item-args)
-        (when-let ((offset-time-p (org-srs-review-learn-ahead-offset-time-p)))
-          (org-srs-review-add-hook-once
-           'org-srs-review-after-rate-hook
-           (let ((due-timestamp (org-srs-item-due-timestamp)))
-             (lambda ()
-               (when org-srs-review-rating
-                 (let ((difference (org-srs-timestamp-difference due-timestamp (org-srs-timestamp-now))))
-                   (when (cl-plusp difference)
-                     (apply #'org-srs-item-goto item-args)
-                     (org-srs-table-goto-starred-line)
-                     (let ((due-timestamp (org-srs-timestamp+ (org-srs-table-field 'timestamp) difference :sec)))
-                       (when (cl-etypecase offset-time-p
-                               (function (funcall offset-time-p (org-srs-timestamp-time due-timestamp)))
-                               ((eql t) t))
-                         (setf (org-srs-table-field 'timestamp) due-timestamp))))))))
-           75))
         (cl-assert (not (local-variable-p 'org-srs-review-item-marker)))
         (cl-assert (null org-srs-review-item-marker))
         (setq-local org-srs-review-item-marker (point-marker))
