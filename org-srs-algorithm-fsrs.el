@@ -32,7 +32,7 @@
 
 (require 'org-srs-algorithm)
 (require 'org-srs-time)
-(require 'org-srs-step)
+(require 'org-srs-schedule-step)
 
 (cl-defmethod org-srs-algorithm-ensure ((_type (eql 'fsrs)) &rest args)
   (apply #'fsrs-make-scheduler args))
@@ -68,7 +68,7 @@
                       (due 'timestamp)
                       (t slot))
                     (cl-case slot
-                      (state (or (org-srs-step-state) (fsrs-card-state card-new)))
+                      (state (or (org-srs-schedule-step-state) (fsrs-card-state card-new)))
                       (t (eieio-oref card-new slot))))
            into slots
            finally (cl-return (nconc slots args))))
