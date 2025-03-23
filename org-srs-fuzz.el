@@ -90,13 +90,11 @@
 (defun org-srs-fuzz-update-due-timestamp ()
   (if (boundp 'org-srs-review-rating)
       (when (symbol-value 'org-srs-review-rating)
-        (save-excursion
-          (goto-char org-srs-review-item-marker)
-          (org-srs-property-let (org-srs-fuzz-ranges org-srs-fuzz-unit)
-            (org-srs-table-with-temp-buffer
-              (org-srs-table-goto-starred-line)
-              (setf (org-srs-table-field 'timestamp) (org-srs-fuzz-due-timestamp))))
-          (org-srs-log-hide-drawer)))
+        (goto-char org-srs-review-item-marker)
+        (org-srs-table-goto-starred-line)
+        (org-srs-property-let (org-srs-fuzz-ranges org-srs-fuzz-unit)
+          (org-srs-table-with-temp-buffer
+            (setf (org-srs-table-field 'timestamp) (org-srs-fuzz-due-timestamp)))))
     (setf (org-srs-table-field 'timestamp) (org-srs-fuzz-due-timestamp))))
 
 (add-hook 'org-srs-review-after-rate-hook #'org-srs-fuzz-update-due-timestamp 60)
