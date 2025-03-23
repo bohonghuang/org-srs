@@ -88,11 +88,26 @@
       (apply #'org-srs-item-goto item args)
       t)))
 
-(cl-defun org-srs-item-due-timestamp (&optional (item nil itemp) &rest args)
-  (save-window-excursion
-    (when itemp (apply #'org-srs-item-goto item args))
+(defmacro org-srs-item-save-selected-window-excursion (&rest body)
+  (declare (indent 0))
+  (cl-with-gensyms (buffer)
+    `(let ((,buffer (window-buffer)))
+       (unwind-protect (progn . ,body)
+         (unless (eq ,buffer (window-buffer))
+           (setf (window-buffer) ,buffer))))))
+
+(defun org-srs-item-due-timestamp-1 ()
+  (save-excursion
+    (goto-char (org-srs-table-begin))
     (re-search-forward org-srs-log-latest-timestamp-regexp (org-srs-table-end))
-    (match-string 2)))
+    (match-string-no-properties 2)))
+
+(cl-defun org-srs-item-due-timestamp (&optional (item nil itemp) &rest args)
+  (if itemp
+      (org-srs-item-save-selected-window-excursion
+        (apply #'org-srs-item-goto item args)
+        (org-srs-item-due-timestamp-1))
+    (org-srs-item-due-timestamp-1)))
 
 (defun org-srs-item-repeat (item rating)
   (org-srs-item-goto item)
