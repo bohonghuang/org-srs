@@ -1,4 +1,4 @@
-;;; org-srs-step.el --- Stepped (re)learning mechanism  -*- lexical-binding:t -*-
+;;; org-srs-schedule-step.el --- Stepped (re)learning mechanism  -*- lexical-binding:t -*-
 
 ;; Copyright (C) 2024-2025 Bohong Huang
 
@@ -33,23 +33,24 @@
 (require 'org-srs-log)
 (require 'org-srs-table)
 (require 'org-srs-time)
+(require 'org-srs-schedule)
 
-(defgroup org-srs-step nil
+(defgroup org-srs-schedule-step nil
   "Stepped learning mechanism to ensure retention before reviews."
-  :group 'org-srs
-  :prefix "org-srs-step-")
+  :group 'org-srs-schedule
+  :prefix "org-srs-schedule-step-")
 
-(org-srs-property-defcustom org-srs-step-learning-steps '((1 :minute) (10 :minute))
+(org-srs-property-defcustom org-srs-schedule-step-learning-steps '((1 :minute) (10 :minute))
   "Number of learning repetitions, and the delay between them."
-  :group 'org-srs-step
+  :group 'org-srs-schedule-step
   :type 'sexp)
 
-(org-srs-property-defcustom org-srs-step-relearning-steps '((10 :minute))
-  "Same as variable `org-srs-step-learning-steps', but for items being relearned."
-  :group 'org-srs-step
+(org-srs-property-defcustom org-srs-schedule-step-relearning-steps '((10 :minute))
+  "Same as `org-srs-schedule-step-learning-steps', but for items being relearned."
+  :group 'org-srs-schedule-step
   :type 'sexp)
 
-(defun org-srs-step-list ()
+(defun org-srs-schedule-step-list ()
   (save-excursion
     (cl-loop with step-max = (1- most-positive-fixnum) and steps = nil
              initially (setf step 1)
@@ -64,45 +65,45 @@
              until (cl-minusp (forward-line -1))
              until (org-at-table-hline-p))))
 
-(cl-defun org-srs-step-learned-p (&optional (learning-steps (org-srs-step-learning-steps)) (step-list (org-srs-step-list)))
+(cl-defun org-srs-schedule-step-learned-p (&optional (learning-steps (org-srs-schedule-step-learning-steps)) (step-list (org-srs-schedule-step-list)))
   (cl-some (apply-partially #'< (length learning-steps)) (cl-rest step-list)))
 
-(defun org-srs-step-steps ()
-  (let ((step-list (org-srs-step-list))
-        (learning-steps (org-srs-step-learning-steps)))
+(defun org-srs-schedule-step-steps ()
+  (let ((step-list (org-srs-schedule-step-list))
+        (learning-steps (org-srs-schedule-step-learning-steps)))
     (cl-assert (cl-plusp (length step-list)))
     (cl-values
      (cl-first step-list)
      (if (cl-some (apply-partially #'< (length learning-steps)) (cl-rest step-list))
-         (org-srs-step-relearning-steps)
+         (org-srs-schedule-step-relearning-steps)
        learning-steps))))
 
-(defun org-srs-step-state ()
-  (org-srs-property-let (org-srs-step-learning-steps org-srs-step-relearning-steps)
-    (let ((learning-steps (org-srs-step-learning-steps))
-          (relearning-steps (org-srs-step-relearning-steps)))
+(defun org-srs-schedule-step-state ()
+  (org-srs-property-let (org-srs-schedule-step-learning-steps org-srs-schedule-step-relearning-steps)
+    (let ((learning-steps (org-srs-schedule-step-learning-steps))
+          (relearning-steps (org-srs-schedule-step-relearning-steps)))
       (save-excursion
         (cl-loop while (org-at-table-p)
                  while (string-empty-p (org-srs-table-field 'rating))
                  until (cl-minusp (forward-line -1))
                  until (org-at-table-hline-p))
-        (cl-multiple-value-bind (step steps) (org-srs-step-steps)
+        (cl-multiple-value-bind (step steps) (org-srs-schedule-step-steps)
           (unless (> step (length steps))
             (if (eq steps learning-steps) :learning
               (cl-assert (eq steps relearning-steps))
               :relearning)))))))
 
-(cl-defun org-srs-step-due-timestamp ()
+(cl-defun org-srs-schedule-step-due-timestamp ()
   (save-excursion
     (let ((timestamp-scheduled (org-srs-table-field 'timestamp))
           (timestamp-review (progn (forward-line -1) (org-srs-table-field 'timestamp))))
-      (cl-multiple-value-bind (step steps) (org-srs-step-steps)
+      (cl-multiple-value-bind (step steps) (org-srs-schedule-step-steps)
         (cl-assert (cl-plusp step))
         (cl-multiple-value-bind (step frac) (cl-truncate step)
           (let* ((index (1- step))
                  (index-next (if (< (abs frac) 1e-3) index (1+ index))))
             (unless (< index (length steps))
-              (cl-return-from org-srs-step-due-timestamp timestamp-scheduled))
+              (cl-return-from org-srs-schedule-step-due-timestamp timestamp-scheduled))
             (if (< index-next (length steps))
                 (when-let ((step (nth index steps))
                            (step-next (nth index-next steps)))
@@ -116,17 +117,17 @@
                  (apply #'org-srs-timestamp+ timestamp-review step-next)
                  (org-srs-timestamp+ (apply #'org-srs-timestamp+ timestamp-review step-last) 1 :day))))))))))
 
-(defun org-srs-step-update-due-timestamp ()
+(defun org-srs-schedule-step-update-due-timestamp ()
   (if (boundp 'org-srs-review-rating)
       (when (symbol-value 'org-srs-review-rating)
         (goto-char org-srs-review-item-marker)
         (org-srs-table-goto-starred-line)
-        (org-srs-property-let (org-srs-step-learning-steps org-srs-step-relearning-steps)
+        (org-srs-property-let (org-srs-schedule-step-learning-steps org-srs-schedule-step-relearning-steps)
           (org-srs-table-with-temp-buffer
-            (setf (org-srs-table-field 'timestamp) (org-srs-step-due-timestamp)))))
-    (setf (org-srs-table-field 'timestamp) (org-srs-step-due-timestamp))))
+            (setf (org-srs-table-field 'timestamp) (org-srs-schedule-step-due-timestamp)))))
+    (setf (org-srs-table-field 'timestamp) (org-srs-schedule-step-due-timestamp))))
 
-(add-hook 'org-srs-review-after-rate-hook #'org-srs-step-update-due-timestamp 50)
+(add-hook 'org-srs-review-after-rate-hook #'org-srs-schedule-step-update-due-timestamp 50)
 
-(provide 'org-srs-step)
-;;; org-srs-step.el ends here
+(provide 'org-srs-schedule-step)
+;;; org-srs-schedule-step.el ends here
