@@ -124,7 +124,7 @@ from a large set of review items."
                                          (cache-marker (&optional (item (cache-item)))
                                            (setf (gethash item (org-srs-review-cache-markers cache)) (point-marker)))
                                          (cache-due-time ()
-                                           (let ((due-time (save-excursion (org-srs-timestamp-time (org-srs-item-due-timestamp)))))
+                                           (let ((due-time (org-srs-timestamp-time (org-srs-item-due-timestamp))))
                                              (when (cl-plusp (org-srs-time-difference tomorrow-time due-time))
                                                (let ((item (cache-item)))
                                                  (setf (org-srs-review-cache-pending cache)
@@ -151,7 +151,7 @@ from a large set of review items."
             (goto-char org-srs-review-item-marker)
             (save-restriction
               (let* ((cache (org-srs-review-cache))
-                     (due-time (save-excursion (org-srs-timestamp-time (org-srs-item-due-timestamp)))))
+                     (due-time (org-srs-timestamp-time (org-srs-item-due-timestamp))))
                 (narrow-to-region (org-srs-item-begin) (org-srs-item-end))
                 (let ((item (nconc (cl-multiple-value-list (org-srs-item-at-point)) (list (current-buffer)))))
                   (setf (org-srs-review-cache-pending cache)
