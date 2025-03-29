@@ -39,8 +39,7 @@
                                            &key
                                            (faces (make-list (length labels) 'default))
                                            (callback #'ignore))
-  (let* ((frame (selected-frame))
-         (child-frame (org-srs-child-frame 'org-srs-mouse-bottom-panel :parent frame))
+  (let* ((child-frame (org-srs-child-frame 'org-srs-mouse-bottom-panel))
          (button-width (/ (frame-pixel-width child-frame) (float (length labels))))
          (button-height (frame-pixel-height child-frame))
          (current-buffer (current-buffer)))
@@ -59,7 +58,7 @@
                (propertize " " 'display `(space :width (,space-width) :height (,button-height))))
               'face `((:foreground ,(face-foreground face))
                       (:inherit custom-button))
-              'action (lambda (&optional _) (select-frame frame) (funcall callback label)))))
+              'action (lambda (&optional _) (select-frame (frame-parent child-frame)) (funcall callback label)))))
          labels faces)
         (goto-char (point-min))))))
 
