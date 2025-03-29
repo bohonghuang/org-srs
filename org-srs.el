@@ -33,26 +33,31 @@
 ;;; Code:
 
 (require 'org-srs-property)
-(require 'org-srs-algorithm)
 (require 'org-srs-time)
 (require 'org-srs-table)
 (require 'org-srs-log)
-(require 'org-srs-item)
 (require 'org-srs-query)
+
+(require 'org-srs-item)
+(require 'org-srs-item-card)
+(require 'org-srs-item-cloze)
+
 (require 'org-srs-review)
 (require 'org-srs-review-cache)
+
 (require 'org-srs-schedule)
 (require 'org-srs-schedule-offset)
 (require 'org-srs-schedule-step)
 (require 'org-srs-schedule-fuzz)
 
+(require 'org-srs-algorithm)
 (require 'org-srs-algorithm-fsrs)
 (setf (default-value 'org-srs-algorithm) (or (default-value 'org-srs-algorithm) 'fsrs))
 
-(require 'org-srs-item-card)
-(require 'org-srs-item-cloze)
-
 (require 'org-srs-stats-interval)
+
+(require 'org-srs-child-frame)
+(require 'org-srs-mouse)
 
 (provide 'org-srs)
 ;;; org-srs.el ends here

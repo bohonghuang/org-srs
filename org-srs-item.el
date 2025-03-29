@@ -220,6 +220,22 @@ the current item."
       (message (substitute-command-keys "Continue with \\[org-srs-item-confirm-command]"))
       (add-hook 'org-srs-item-after-confirm-hook flag-hook nil t))))
 
+(cl-defun org-srs-item-confirm-pending-p (&optional (command #'org-srs-item-confirm-command))
+  (when (local-variable-p 'org-srs-item-after-confirm-hook)
+    (let ((org-srs-item-before-confirm-hook
+           (cons
+            (lambda ()
+              (setf org-srs-item-before-confirm-hook (cl-copy-list org-srs-item-before-confirm-hook))
+              (cl-return-from org-srs-item-confirm-pending-p nil))
+            org-srs-item-before-confirm-hook))
+          (org-srs-item-after-confirm-hook
+           (cons
+            (lambda ()
+              (setf org-srs-item-after-confirm-hook (cl-copy-list org-srs-item-after-confirm-hook))
+              (cl-return-from org-srs-item-confirm-pending-p command))
+            org-srs-item-after-confirm-hook)))
+      (ignore-errors (funcall command)))))
+
 (defun org-srs-item-confirm-cleanup-on-quit ()
   (cl-loop for hook in '(org-srs-item-before-confirm-hook org-srs-item-after-confirm-hook)
            when (local-variable-p hook)
