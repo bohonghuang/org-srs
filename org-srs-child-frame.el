@@ -26,23 +26,21 @@
 
 (require 'cl-lib)
 
-(defvar org-srs-child-frame-table (make-hash-table :test #'equal))
-
-(defmacro org-srs-child-frame-ensure-gethash (key hash-table &optional default)
-  (cl-once-only (key hash-table)
-    (cl-with-gensyms (value null)
-      `(let ((,value (gethash ,key ,hash-table ',null)))
-         (if (eq ,value ',null)
-             (setf (gethash ,key ,hash-table) ,default)
-           ,value)))))
+(defvar org-srs-child-frames nil)
 
 (cl-defun org-srs-child-frame (name
                                &key
-                               (parent (selected-frame))
-                               (window (selected-window))
+                               (parent (let ((frame (selected-frame)))
+                                         (if-let ((cons (cl-rassoc frame org-srs-child-frames :test #'eq)))
+                                             (let ((parent (caar cons)))
+                                               (cl-assert (eq parent (frame-parent frame)))
+                                               parent)
+                                           frame)))
+                               (window (frame-selected-window parent))
                                (size (/ 16.0))
                                (position :bottom)
                                (buffer (get-buffer-create (format " *org-srs-child-frame %x/%s*" (sxhash-eq parent) name))))
+  (cl-assert (null (frame-parent parent)))
   (cl-destructuring-bind (parent-left parent-top parent-right parent-bottom)
       (window-inside-absolute-pixel-edges window)
     (let ((parent-width (- parent-right parent-left))
@@ -60,6 +58,7 @@
                        `((name . "org-srs-child-frame")
                          (parent-frame . ,parent)
                          (no-accept-focus . t)
+                         (visibility . nil)
                          (border-width . 0)
                          (minibuffer . nil)
                          (menu-bar-lines . 0)
@@ -74,10 +73,9 @@
                          (no-special-glyphs . t)
                          (skip-taskbar . t)
                          (desktop-dont-save . t)))))
-            (let ((frame (org-srs-child-frame-ensure-gethash
-                          (cons parent name)
-                          org-srs-child-frame-table
-                          (make-child-frame))))
+            (let ((frame (let ((key (cons parent name)))
+                           (or (alist-get key org-srs-child-frames nil t #'equal)
+                               (setf (alist-get key org-srs-child-frames nil t #'equal) (make-child-frame))))))
               (set-frame-size frame child-width child-height t)
               (set-frame-position frame child-left child-top)
               (set-window-buffer (frame-selected-window frame) buffer)
