@@ -29,7 +29,6 @@
 (require 'nadvice)
 
 (require 'org)
-(require 'org-table)
 (require 'org-element)
 
 (defmacro org-srs-log-define-org-element-bound-functions ()
@@ -167,6 +166,12 @@
         (delete-region (point) (+ (point) value-length))))
     (insert value)))
 
+(cl-defun org-srs-table-duplicate-line (&optional (arg 1))
+  (save-excursion
+    (cl-loop with string = (buffer-substring-no-properties (pos-bol) (pos-eol))
+             repeat arg
+             do (end-of-line) (newline) (insert string))))
+
 (cl-defun org-srs-table-call-with-temp-buffer-1 (thunk
                                                  &optional
                                                  (table (buffer-substring-no-properties
@@ -195,9 +200,11 @@
       (insert table)
       (goto-char (+ begin point)))))
 
+(defvar org-srs-table-with-temp-buffer-function #'org-srs-table-call-with-temp-buffer)
+
 (cl-defmacro org-srs-table-with-temp-buffer (&rest body)
   (declare (indent 0))
-  `(org-srs-table-call-with-temp-buffer (lambda () . ,body)))
+  `(funcall org-srs-table-with-temp-buffer-function (lambda () . ,body)))
 
 (defvar org-table-get-stored-formulas@org-table-formula-named-column-lhs-support nil)
 
