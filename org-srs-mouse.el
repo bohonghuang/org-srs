@@ -35,12 +35,19 @@
   (when (frame-visible-p frame)
     (make-frame-invisible frame)))
 
+(cl-defun org-srs-mouse-string-pad-pixel (string &optional (width (string-pixel-width string)) (height (line-pixel-height)))
+  (let ((space-width (/ (- width (string-pixel-width string)) 2)))
+    (concat
+     (propertize " " 'display `(space :width (,space-width) :height (,height)))
+     string
+     (propertize " " 'display `(space :width (,space-width) :height (,height))))))
+
 (cl-defun org-srs-mouse-bottom-panel-show (labels
                                            &key
                                            (faces (make-list (length labels) 'default))
                                            (callback #'ignore))
   (let* ((child-frame (org-srs-child-frame 'org-srs-mouse-bottom-panel))
-         (button-width (/ (frame-pixel-width child-frame) (float (length labels))))
+         (button-width (- (/ (frame-pixel-width child-frame) (float (length labels))) (* (string-pixel-width "​") 2)))
          (button-height (frame-pixel-height child-frame))
          (current-buffer (current-buffer)))
     (with-selected-frame (make-frame-visible child-frame)
@@ -49,16 +56,13 @@
         (erase-buffer)
         (cl-mapc
          (lambda (label face)
-           (let* ((text (capitalize (string-trim-left (format "%s" label) ":")))
-                  (space-width (/ (- button-width (string-pixel-width text)) 2)))
-             (insert-button
-              (concat
-               (propertize " " 'display `(space :width (,space-width) :height (,button-height)))
-               text
-               (propertize " " 'display `(space :width (,space-width) :height (,button-height))))
-              'face `((:foreground ,(face-foreground face))
-                      (:inherit custom-button))
-              'action (lambda (&optional _) (select-frame (frame-parent child-frame)) (funcall callback label)))))
+           (insert "​")
+           (insert-text-button
+            (org-srs-mouse-string-pad-pixel (capitalize (string-trim-left (format "%s" label) ":")) button-width button-height)
+            'face `((:foreground ,(face-foreground face))
+                    (:inherit custom-button))
+            'action (lambda (&optional _) (select-frame (frame-parent child-frame)) (funcall callback label)))
+           (insert "​"))
          labels faces)
         (goto-char (point-min))))))
 
