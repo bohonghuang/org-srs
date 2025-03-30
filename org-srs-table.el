@@ -55,7 +55,7 @@
            when (string-match-p "\\`[a-zA-Z][_a-zA-Z0-9]*\\'" name)
            collect (cons (intern name) column)))
 
-(defconst org-srs-table-readable-field-regexp (rx bos (or (and ":" (+ anychar)) (and (? "-") (+ digit) (? "." (* digit)))) eos))
+(defconst org-srs-table-readable-field-regexp (rx bos (or (and ":" (+ anychar)) (and (? "-") (+ digit) (? "." (* digit)) (? "e" (? "-") (+ digit)))) eos))
 
 (defun org-srs-table-ensure-read-field (field)
   (if (string-match-p org-srs-table-readable-field-regexp field)
