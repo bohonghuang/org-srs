@@ -54,6 +54,7 @@
 (require 'org-srs-algorithm-fsrs)
 (setf (default-value 'org-srs-algorithm) (or (default-value 'org-srs-algorithm) 'fsrs))
 
+(require 'org-srs-stats)
 (require 'org-srs-stats-interval)
 
 (require 'org-srs-child-frame)
