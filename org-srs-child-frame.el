@@ -28,12 +28,20 @@
 
 (defvar org-srs-child-frames nil)
 
+(cl-defun org-srs-child-frame-p (&optional (frame (selected-frame)))
+  (cl-values-list (car (cl-rassoc frame org-srs-child-frames :test #'eq))))
+
+(cl-defun org-srs-child-frame-root (&optional (frame (selected-frame)))
+  (if-let ((parent (cl-nth-value 0 (org-srs-child-frame-p frame))))
+      (progn
+        (cl-assert (eq parent (frame-parent frame)))
+        (cl-assert (null (frame-parent parent)))
+        (org-srs-child-frame-root parent))
+    frame))
+
 (cl-defun org-srs-child-frame (name
                                &key
-                               (parent (let ((frame (selected-frame)))
-                                         (if-let ((parent (caar (cl-rassoc frame org-srs-child-frames :test #'eq))))
-                                             (progn (cl-assert (eq parent (frame-parent frame))) parent)
-                                           frame)))
+                               (parent (org-srs-child-frame-root))
                                (window (frame-selected-window parent))
                                (size (/ 16.0))
                                (position :bottom)
@@ -71,7 +79,7 @@
                          (no-special-glyphs . t)
                          (skip-taskbar . t)
                          (desktop-dont-save . t)))))
-            (let ((frame (let ((key (cons parent name)))
+            (let ((frame (let ((key (list parent name)))
                            (or #1=(alist-get key org-srs-child-frames nil t #'equal)
                                (let ((frame (make-child-frame)))
                                  (if-let ((new-frame #1#))

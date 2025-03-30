@@ -76,7 +76,7 @@
     (remove-hook 'window-buffer-change-functions #'org-srs-mouse-mode-update-panels)
     (remove-hook 'window-size-change-functions #'org-srs-mouse-mode-update-panels)))
 
-(defun org-srs-mouse-mode-update-panels (&rest _)
+(defun org-srs-mouse-mode-update-panels-1 ()
   (if (and org-srs-mouse-mode (eq major-mode 'org-mode) org-srs-review-item-marker)
       (if-let ((confirm-command (org-srs-item-confirm-pending-p)))
           (org-srs-mouse-bottom-panel-show
@@ -91,6 +91,12 @@
                      (cl-assert (org-srs-reviewing-p))
                      (org-srs-review-rate rating))))
     (org-srs-mouse-bottom-panel-hide)))
+
+(defun org-srs-mouse-mode-update-panels (&rest _)
+  (if (org-srs-child-frame-p)
+      (with-selected-frame (org-srs-child-frame-root)
+        (org-srs-mouse-mode-update-panels-1))
+    (org-srs-mouse-mode-update-panels-1)))
 
 (add-hook 'org-srs-item-before-confirm-hook #'org-srs-mouse-mode-update-panels)
 (add-hook 'org-srs-item-after-confirm-hook #'org-srs-mouse-mode-update-panels)
