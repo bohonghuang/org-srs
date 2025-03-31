@@ -78,7 +78,8 @@
         (add-hook 'window-size-change-functions #'org-srs-mouse-mode-update-panels))
     (remove-hook 'window-selection-change-functions #'org-srs-mouse-mode-update-panels)
     (remove-hook 'window-buffer-change-functions #'org-srs-mouse-mode-update-panels)
-    (remove-hook 'window-size-change-functions #'org-srs-mouse-mode-update-panels)))
+    (remove-hook 'window-size-change-functions #'org-srs-mouse-mode-update-panels)
+    (setf (org-srs-child-frames 'org-srs-mouse-bottom-panel) nil)))
 
 (defun org-srs-mouse-mode-update-panels-1 ()
   (if (and org-srs-mouse-mode (eq major-mode 'org-mode) org-srs-review-item-marker)
