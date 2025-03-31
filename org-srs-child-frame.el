@@ -39,6 +39,17 @@
         (org-srs-child-frame-root parent))
     frame))
 
+(cl-defun org-srs-child-frames-1 (&optional (name nil namep))
+  (if namep (cl-remove name org-srs-child-frames :key #'cadar :test-not #'eq) org-srs-child-frames))
+
+(defun org-srs-child-frames (&rest args)
+  (mapcar #'cdr (apply #'org-srs-child-frames-1 args)))
+
+(defun \(setf\ org-srs-child-frames\) (value &rest args)
+  (cl-assert (null value))
+  (mapc #'delete-frame (apply #'org-srs-child-frames args))
+  (setf org-srs-child-frames (cl-nset-difference org-srs-child-frames (apply #'org-srs-child-frames-1 args))))
+
 (cl-defun org-srs-child-frame (name
                                &key
                                (parent (org-srs-child-frame-root))
