@@ -30,6 +30,7 @@
 (require 'org-srs-child-frame)
 (require 'org-srs-review)
 (require 'org-srs-item)
+(require 'org-srs-stats-interval)
 
 (cl-defun org-srs-mouse-bottom-panel-hide (&optional (frame (org-srs-child-frame 'org-srs-mouse-bottom-panel)))
   (when (frame-visible-p frame)
@@ -41,6 +42,10 @@
      (propertize " " 'display `(space :width (,space-width) :height (,height)))
      string
      (propertize " " 'display `(space :width (,space-width) :height (,height))))))
+
+(defconst org-srs-mouse-bottom-panel-button-faces
+  (cl-loop for rating in org-srs-review-ratings
+           collect (cons rating (cl-ecase rating (:easy 'homoglyph) (:good 'success) (:hard 'warning) (:again 'error)))))
 
 (cl-defun org-srs-mouse-bottom-panel-show (labels
                                            &key
@@ -81,6 +86,32 @@
     (remove-hook 'window-size-change-functions #'org-srs-mouse-mode-update-panels)
     (setf (org-srs-child-frames 'org-srs-mouse-bottom-panel) nil)))
 
+(defun org-srs-mouse-show-intervals-in-minibuffer ()
+  (when org-srs-mouse-mode
+    (let ((marker org-srs-review-item-marker))
+      (cl-assert marker)
+      (cl-loop with message-log-max = nil
+               with width = (window-pixel-width (minibuffer-window))
+               and height = (with-minibuffer-selected-window (line-pixel-height))
+               with label-width = (/ width 4)
+               for (rating interval) on (with-current-buffer (marker-buffer marker)
+                                          (save-excursion
+                                            (goto-char marker)
+                                            (org-srs-stats-intervals)))
+               by #'cddr
+               concat (propertize
+                       (org-srs-mouse-string-pad-pixel
+                        (cl-loop for (amount unit has-next-p) on (org-srs-time-seconds-desc interval) by #'cddr
+                                 for i from 1
+                                 concat (format "%d%.1s" amount (string-trim-left (symbol-name unit) ":"))
+                                 while (< i 2)
+                                 when has-next-p
+                                 concat " ")
+                        label-width height)
+                       'face (alist-get rating org-srs-mouse-bottom-panel-button-faces))
+               into message
+               finally (message "%s" message)))))
+
 (defun org-srs-mouse-mode-update-panels-1 ()
   (if (and org-srs-mouse-mode (eq major-mode 'org-mode) org-srs-review-item-marker)
       (if-let ((confirm-command (org-srs-item-confirm-pending-p)))
@@ -91,7 +122,7 @@
                        (call-interactively confirm-command)))
         (org-srs-mouse-bottom-panel-show
          org-srs-review-ratings
-         :faces '(homoglyph success warning error)
+         :faces (mapcar (lambda (rating) (alist-get rating org-srs-mouse-bottom-panel-button-faces)) org-srs-review-ratings)
          :callback (lambda (rating)
                      (cl-assert (org-srs-reviewing-p))
                      (org-srs-review-rate rating))))
@@ -105,6 +136,7 @@
 
 (add-hook 'org-srs-item-before-confirm-hook #'org-srs-mouse-mode-update-panels)
 (add-hook 'org-srs-item-after-confirm-hook #'org-srs-mouse-mode-update-panels)
+(add-hook 'org-srs-item-after-confirm-hook #'org-srs-mouse-show-intervals-in-minibuffer)
 
 (provide 'org-srs-mouse)
 ;;; org-srs-mouse.el ends here
