@@ -139,7 +139,7 @@
 
 (cl-defgeneric org-srs-item-new (type &rest args)
   (let ((item (cons type args)))
-    (cl-assert (not (org-srs-item-exists-p item)) nil "Item %s already exists" item)
+    (cl-assert (not (apply #'org-srs-item-exists-p item)) nil "Item %s already exists" item)
     (cl-assert (org-id-get))
     (org-srs-log-end-of-drawer)
     (org-open-line 1)
