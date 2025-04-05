@@ -27,6 +27,7 @@
 (require 'cl-lib)
 (require 'cl-generic)
 (require 'custom)
+(require 'project)
 
 (require 'org-srs-property)
 (require 'org-srs-table)
@@ -208,14 +209,22 @@
   (cl-delete
    nil
    (list
-    (cons
-     'region
-     (when (region-active-p)
-       (cons
-        (copy-marker (region-beginning))
-        (copy-marker (region-end)))))
-    (cons 'buffer (buffer-file-name))
-    (cons 'directory default-directory))
+    (when (eq major-mode 'org-mode)
+      (cons
+       'region
+       (when (region-active-p)
+         (cons
+          (copy-marker (region-beginning))
+          (copy-marker (region-end))))))
+    (when (eq major-mode 'org-mode)
+      (cons 'buffer (cons (point-min-marker) (point-max-marker))))
+    (when (eq major-mode 'org-mode)
+      (when-let ((file (buffer-file-name)))
+        (cons 'file file)))
+    (cons 'directory default-directory)
+    (when-let* ((project (project-current))
+                (root (project-root project)))
+      (cons 'project root)))
    :key #'cdr))
 
 (org-srs-property-defcustom org-srs-review-learn-ahead-offset-time-p #'org-srs-time-today-p
