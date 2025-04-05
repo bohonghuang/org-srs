@@ -118,9 +118,8 @@
     (cl-loop initially (goto-char start)
              while (re-search-forward org-srs-item-header-regexp end t)
              do (goto-char (match-beginning 0))
-             when (save-match-data (funcall predicate))
-             collect (cl-multiple-value-list (org-srs-item-from-match-data))
-             do (goto-char (match-end 0)))))
+             when (prog1 (save-match-data (funcall predicate)) (goto-char (match-end 0)))
+             collect (cl-multiple-value-list (org-srs-item-from-match-data)))))
 
 (cl-defun org-srs-query-buffer (predicate &optional (buffer (current-buffer)))
   (with-current-buffer buffer
