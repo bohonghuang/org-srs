@@ -178,20 +178,6 @@
      hook-function)
    depth local))
 
-(defun org-srs-item-run-hook-once (hook)
-  (if (local-variable-p hook)
-      (let ((cons-set (cl-loop with table = (make-hash-table :test #'eq)
-                               for cons on (symbol-value hook)
-                               do (setf (gethash cons table) t)
-                               finally (cl-return table))))
-        (unwind-protect (run-hooks hook)
-          (when (cl-loop for cons on (symbol-value hook) always (gethash cons cons-set))
-            (kill-local-variable hook))))
-    (run-hooks hook)))
-
-(defun org-srs-item-run-hooks-once (&rest hooks)
-  (mapc #'org-srs-item-run-hook-once hooks))
-
 (defun org-srs-item-narrow ()
   (org-back-to-heading)
   (org-narrow-to-subtree)
@@ -201,9 +187,9 @@
 (defvar org-srs-item-after-confirm-hook nil)
 
 (defun org-srs-item-confirm-read-key (&rest _args)
-  (org-srs-item-run-hooks-once 'org-srs-item-before-confirm-hook)
+  (run-hooks 'org-srs-item-before-confirm-hook)
   (read-key "Continue with any key")
-  (org-srs-item-run-hooks-once 'org-srs-item-after-confirm-hook))
+  (run-hooks 'org-srs-item-after-confirm-hook))
 
 (defun org-srs-item-confirm-command (&rest _args)
   "Continue the item being reviewed in the current review session.
@@ -214,9 +200,9 @@ the current item."
   (interactive)
   (let ((flag-hook (eval-when-compile (letrec ((hook (lambda () (remove-hook 'org-srs-item-after-confirm-hook hook t)))) hook))))
     (if (member flag-hook org-srs-item-after-confirm-hook)
-        (org-srs-item-run-hook-once 'org-srs-item-after-confirm-hook)
+        (run-hooks 'org-srs-item-after-confirm-hook)
       (cl-assert (not (called-interactively-p 'any)))
-      (org-srs-item-run-hooks-once 'org-srs-item-before-confirm-hook)
+      (run-hooks 'org-srs-item-before-confirm-hook)
       (message (substitute-command-keys "Continue with \\[org-srs-item-confirm-command]"))
       (add-hook 'org-srs-item-after-confirm-hook flag-hook nil t))))
 
@@ -242,7 +228,7 @@ the current item."
            when (boundp 'org-srs-review-rating)
            do (cl-assert (null (symbol-value 'org-srs-review-rating)))
            end and
-           do (org-srs-item-run-hooks-once hook)))
+           do (run-hooks hook)))
 
 (add-hook 'org-srs-review-before-rate-hook #'org-srs-item-confirm-cleanup-on-quit)
 

@@ -250,7 +250,7 @@ The Org-srs entry export buffer is current and still narrowed.")
   "Finalize the Org-srs entry export process."
   (interactive)
   (cl-assert org-srs-embed-export-mode)
-  (org-srs-item-run-hooks-once 'org-srs-embed-prepare-finalize-hook)
+  (run-hooks 'org-srs-embed-prepare-finalize-hook)
   (org-srs-embed-export-finish))
 
 (defun org-srs-embed-export-kill ()
