@@ -87,7 +87,7 @@
     (setf (org-srs-child-frames 'org-srs-mouse-bottom-panel) nil)))
 
 (defun org-srs-mouse-show-intervals-in-minibuffer ()
-  (when (and org-srs-mouse-mode (org-srs-reviewing-p))
+  (when (and org-srs-mouse-mode (org-srs-reviewing-p) (not (org-srs-item-confirm-pending-p)))
     (let ((marker org-srs-review-item-marker))
       (cl-assert marker)
       (cl-loop with message-log-max = nil
