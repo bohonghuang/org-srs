@@ -60,12 +60,11 @@
 (defvar org-srs-review-rating)
 
 (defalias 'org-srs-review-add-hook-once 'org-srs-item-add-hook-once)
-(defalias 'org-srs-review-run-hooks-once 'org-srs-item-run-hooks-once)
 
 (cl-defun org-srs-review-rate (rating &optional (position org-srs-review-item-marker))
   (cl-assert (not buffer-read-only) nil "Buffer %S must be editable" (current-buffer))
   (let ((org-srs-review-rating rating))
-    (org-srs-review-run-hooks-once 'org-srs-review-before-rate-hook))
+    (run-hooks 'org-srs-review-before-rate-hook))
   (save-excursion
     (if position (goto-char position) (cl-multiple-value-call #'org-srs-item-goto (org-srs-item-at-point)))
     (org-srs-table-goto-starred-line)
@@ -75,7 +74,7 @@
       (org-srs-time-tomorrow)))
     (org-srs-item-repeat (cl-nth-value 0 (org-srs-item-at-point)) rating))
   (let ((org-srs-review-rating rating))
-    (org-srs-review-run-hooks-once 'org-srs-review-after-rate-hook)))
+    (run-hooks 'org-srs-review-after-rate-hook)))
 
 (defmacro org-srs-review-define-rating-commands ()
   `(progn . ,(cl-loop for rating in org-srs-review-ratings
@@ -284,8 +283,8 @@ to review."
   (interactive)
   (cl-assert (org-srs-reviewing-p))
   (let ((org-srs-reviewing-p nil) (org-srs-review-rating nil))
-    (org-srs-review-run-hooks-once 'org-srs-review-before-rate-hook)
-    (org-srs-review-run-hooks-once 'org-srs-review-after-rate-hook)))
+    (run-hooks 'org-srs-review-before-rate-hook)
+    (run-hooks 'org-srs-review-after-rate-hook)))
 
 (provide 'org-srs-review)
 ;;; org-srs-review.el ends here
