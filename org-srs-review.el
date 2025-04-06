@@ -54,7 +54,8 @@
 (defvar org-srs-reviewing-predicates (list (apply-partially #'local-variable-p 'org-srs-review-after-rate-hook)))
 
 (defun org-srs-reviewing-p ()
-  (or (bound-and-true-p org-srs-reviewing-p) (cl-loop for predicate in org-srs-reviewing-predicates thereis (funcall predicate))))
+  (if (boundp 'org-srs-reviewing-p) org-srs-reviewing-p
+    (cl-loop for predicate in org-srs-reviewing-predicates thereis (funcall predicate))))
 
 (defvar org-srs-review-rating)
 
@@ -282,7 +283,7 @@ to review."
   "Quit the current review session."
   (interactive)
   (cl-assert (org-srs-reviewing-p))
-  (let ((org-srs-review-rating nil))
+  (let ((org-srs-reviewing-p nil) (org-srs-review-rating nil))
     (org-srs-review-run-hooks-once 'org-srs-review-before-rate-hook)
     (org-srs-review-run-hooks-once 'org-srs-review-after-rate-hook)))
 
