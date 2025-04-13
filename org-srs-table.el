@@ -149,7 +149,7 @@
     (org-table-goto-column column) t))
 
 (defun org-srs-table-field (&optional column)
-  (cl-assert (org-srs-table-goto-column column))
+  (when column (cl-assert (org-srs-table-goto-column column)))
   (org-table-get nil nil))
 
 (defun \(setf\ org-srs-table-field\) (value &optional column)
