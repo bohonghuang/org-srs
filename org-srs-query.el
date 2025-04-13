@@ -97,16 +97,12 @@
      (to (unless fromp (org-srs-time-tomorrow))))
   (lambda ()
     (save-excursion
-      (when-let ((time (cl-loop with end = (progn (goto-char (org-srs-table-begin)) (org-table-end))
-                                initially (org-table-goto-line 2)
-                                for previous-rating = "" then current-rating
-                                for current-rating = (org-srs-table-field 'rating)
-                                for current-timestamp = (org-srs-table-field 'timestamp)
-                                when (and (string-empty-p previous-rating) (not (string-empty-p current-rating)))
-                                return (org-srs-timestamp-time current-timestamp)
-                                while (forward-line 1)
-                                until (>= (point) end))))
-        (and (time-less-p from time) (or (null to) (time-less-p time to)))))))
+      (goto-char (org-srs-table-begin))
+      (org-table-goto-line 3)
+      (unless (string-empty-p (org-srs-table-field 'rating))
+        (when-let ((timestamp (org-srs-table-field 'timestamp)))
+          (let ((time (org-srs-timestamp-time timestamp)))
+            (and (time-less-p from time) (or (null to) (time-less-p time to)))))))))
 
 (defun org-srs-query-predicate-reviewed (&rest args)
   (org-srs-query-predicate-and
