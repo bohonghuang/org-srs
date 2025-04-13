@@ -180,5 +180,36 @@ from a large set of review items."
 
 (add-hook 'org-srs-review-after-rate-hook #'org-srs-review-cache-after-rate 95)
 
+(defun org-srs-review-cache-sub-predicate-p (pred1 pred2)
+  (pcase pred2
+    ((guard (equal pred1 pred2)) 'equal)
+    (`(and . ,preds) (cl-loop for pred2 in preds thereis (org-srs-review-cache-sub-predicate-p pred1 pred2)))))
+
+(define-advice org-srs-query-predicate (:around (fun &rest args) org-srs-review-cache)
+  (if (and (org-srs-reviewing-p) (org-srs-review-cache-query-p) (not (bound-and-true-p org-srs-query-predicate)))
+      (cl-destructuring-bind (desc) args
+        (lambda ()
+          (cl-loop with cache = (org-srs-review-cache)
+                   with target-item = (org-srs-item-at-point)
+                   initially (cl-assert (and (org-srs-reviewing-p) (org-srs-review-cache-query-p)))
+                   for (predicate . items) in (org-srs-review-cache-queries cache)
+                   for sub-predicate-p = (org-srs-review-cache-sub-predicate-p desc predicate)
+                   when sub-predicate-p
+                   if (cl-loop for item in items thereis (org-srs-review-cache-item-equal item target-item)) return t
+                   else if (eq sub-predicate-p 'equal) return nil
+                   finally (cl-return (cl-find target-item (org-srs-query desc (org-srs-review-cache-source cache))
+                                               :test #'org-srs-review-cache-item-equal)))))
+    (apply fun args)))
+
+(defmacro org-srs-review-cache-without-query-predicate (&rest body)
+  (declare (indent 0))
+  `(cl-locally (defvar org-srs-query-predicate) (let ((org-srs-query-predicate t)) . ,body)))
+
+(define-advice org-srs-review-cache-after-rate (:around (fun &rest args) org-srs-query-predicate@org-srs-review-cache)
+  (org-srs-review-cache-without-query-predicate (apply fun args)))
+
+(define-advice org-srs-query (:around (fun &rest args) org-srs-query-predicate@org-srs-review-cache)
+  (org-srs-review-cache-without-query-predicate (apply fun args)))
+
 (provide 'org-srs-review-cache)
 ;;; org-srs-review-cache.el ends here
