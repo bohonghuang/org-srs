@@ -189,8 +189,8 @@
       (cl-multiple-value-bind (new-items review-items)
           (cl-loop with predicate-new = (org-srs-query-predicate 'new)
                    and predicate-learned = (org-srs-query-predicate 'learned)
-                   and predicate-due = (org-srs-query-predicate 'due)
-                   and predicate-ahead = (org-srs-query-predicate `(due ,(org-srs-review-learn-ahead-time)))
+                   and predicate-due = (org-srs-query-predicate '(and due))
+                   and predicate-ahead = (org-srs-query-predicate `(and (due ,(org-srs-review-learn-ahead-time))))
                    with items = (org-srs-review-due-items source (org-srs-time-tomorrow) (org-srs-time-tomorrow))
                    for item in items
                    for index from 0
