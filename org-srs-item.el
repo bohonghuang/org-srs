@@ -96,18 +96,37 @@
          (unless (eq ,buffer (window-buffer))
            (setf (window-buffer) ,buffer))))))
 
+(cl-defun org-srs-item-call-with-current (thunk . (item &optional (id (org-id-get)) (buffer (current-buffer))))
+  (if (eq buffer (current-buffer))
+      (save-excursion (org-srs-item-goto item id buffer) (funcall thunk))
+    (org-srs-item-save-selected-window-excursion
+      (switch-to-buffer buffer nil t)
+      (save-excursion (org-srs-item-goto item id buffer) (funcall thunk)))))
+
+(defmacro org-srs-item-with-current (args &rest body)
+  (declare (indent 1))
+  `(apply
+    #'org-srs-item-call-with-current
+    (lambda () . ,body)
+    ,@(cl-etypecase args
+        (symbol (list args))
+        ((satisfies proper-list-p) (append args '(nil)))
+        (list (cl-loop for (arg . rest) on args
+                       collect arg
+                       unless (listp rest) collect rest
+                       while (listp rest))))))
+
 (defun org-srs-item-due-timestamp-1 ()
-  (save-excursion
-    (goto-char (org-srs-table-begin))
-    (re-search-forward org-srs-log-latest-timestamp-regexp (org-srs-table-end))
-    (match-string-no-properties 2)))
+  (goto-char (org-srs-table-begin))
+  (re-search-forward org-srs-log-latest-timestamp-regexp (org-srs-table-end))
+  (match-string-no-properties 2))
 
 (cl-defun org-srs-item-due-timestamp (&optional (item nil itemp) &rest args)
   (if itemp
-      (org-srs-item-save-selected-window-excursion
-        (apply #'org-srs-item-goto item args)
+      (org-srs-item-with-current (item . args)
         (org-srs-item-due-timestamp-1))
-    (org-srs-item-due-timestamp-1)))
+    (save-excursion
+      (org-srs-item-due-timestamp-1))))
 
 (defun org-srs-item-repeat (item rating)
   (org-srs-item-goto item)
