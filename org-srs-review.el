@@ -120,33 +120,31 @@
       (function
        (funcall limit)))))
 
-(cl-defun org-srs-review-due-items (source &optional (learn-ahead-time (org-srs-review-learn-ahead-time)))
+(cl-defun org-srs-review-due-items (source &optional (from (org-srs-time-now) fromp) (to (org-srs-review-learn-ahead-time)))
   (cl-flet ((org-srs-query (predicate &optional (source source))
               (org-srs-query predicate source)))
     (let ((items-learned (org-srs-query 'learned))
-          (items-to-review (org-srs-query `(and (due ,learn-ahead-time) (not reviewed) (not new))))
+          (items-to-review (org-srs-query `(and (due ,to) (not reviewed) (not new))))
           (items-reviewed (org-srs-query 'reviewed)))
-      (cl-flet ((predicate-pending (&optional (now (org-srs-time-now) nowp))
-                  (let* ((predicate-due-now (if nowp `(due ,now) '(due)))
-                         (predicate-due-reviewed `(and ,predicate-due-now reviewed))
-                         (predicate-due-new `(and ,predicate-due-now new))
-                         (predicate-due-nonnew `(and ,predicate-due-now (not new)))
-                         (predicate-due-now `(and ,predicate-due-now)))
-                    (if (< (length items-reviewed) (org-srs-review-max-reviews-per-day))
-                        (if (< (length items-learned) (org-srs-review-new-items-per-day))
-                            (if (or (org-srs-review-new-items-ignore-review-limit-p)
-                                    (< (+ (length items-reviewed) (length items-to-review))
-                                       (org-srs-review-max-reviews-per-day)))
-                                predicate-due-now
-                              predicate-due-nonnew)
-                          predicate-due-nonnew)
-                      (if (< (length items-learned) (org-srs-review-new-items-per-day))
-                          (if (org-srs-review-new-items-ignore-review-limit-p)
-                              predicate-due-new
-                            predicate-due-reviewed)
-                        predicate-due-reviewed)))))
-        (or (org-srs-query (predicate-pending))
-            (org-srs-query (predicate-pending learn-ahead-time)))))))
+      (org-srs-query
+       (let* ((predicate-due-now (if fromp `(due ,from) 'due))
+              (predicate-due-reviewed `(and ,predicate-due-now reviewed))
+              (predicate-due-new `(and ,predicate-due-now new))
+              (predicate-due-nonnew `(and ,predicate-due-now (not new)))
+              (predicate-due-now `(and ,predicate-due-now)))
+         (if (< (length items-reviewed) (org-srs-review-max-reviews-per-day))
+             (if (< (length items-learned) (org-srs-review-new-items-per-day))
+                 (if (or (org-srs-review-new-items-ignore-review-limit-p)
+                         (< (+ (length items-reviewed) (length items-to-review))
+                            (org-srs-review-max-reviews-per-day)))
+                     predicate-due-now
+                   predicate-due-nonnew)
+               predicate-due-nonnew)
+           (if (< (length items-learned) (org-srs-review-new-items-per-day))
+               (if (org-srs-review-new-items-ignore-review-limit-p)
+                   predicate-due-new
+                 predicate-due-reviewed)
+             predicate-due-reviewed)))))))
 
 (defconst org-srs-review-orders
   '((const :tag "Position" position)
@@ -157,8 +155,10 @@
   "Relative display order between new items and review items."
   :group 'org-srs-review
   :type `(choice
-          (const :tag "New first" new-first)
-          (const :tag "Review first" review-first)
+          (const :tag "New-first (due)" new-first)
+          (const :tag "New-first (due and undue)" new-ahead)
+          (const :tag "Review-first (due)" review-first)
+          (const :tag "Review-first (due and undue)" review-ahead)
           . ,org-srs-review-orders))
 
 (org-srs-property-defcustom org-srs-review-order-new 'position
@@ -172,36 +172,61 @@
   :type `(choice . ,org-srs-review-orders))
 
 (cl-defun org-srs-review-next-due-item (&optional (source (current-buffer)))
-  (save-window-excursion
-    (cl-labels ((cl-random-elt (sequence)
-                  (when sequence (elt sequence (random (length sequence)))))
-                (cl-disjoin (&rest functions)
-                  (lambda (&rest args)
-                    (cl-loop for function in functions thereis (apply function args))))
-                (timestamp-seconds (&optional (timestamp (org-srs-item-due-timestamp)))
-                  (time-to-seconds (org-srs-timestamp-time timestamp)))
-                (next-item (items order)
-                  (cl-case order
-                    (position (cl-first (cl-sort items #'< :key #'cl-first)))
-                    (due-date (cl-first (cl-sort items #'< :key #'cl-second)))
-                    (random (cl-random-elt items))
-                    (t (cl-etypecase order (function (funcall order items)))))))
+  (cl-flet* ((cl-random-elt (sequence)
+               (when sequence (elt sequence (random (length sequence)))))
+             (cl-disjoin (&rest functions)
+               (lambda (&rest args)
+                 (cl-loop for function in functions thereis (apply function args))))
+             (timestamp-seconds (&optional (timestamp (org-srs-item-due-timestamp)))
+               (time-to-seconds (org-srs-timestamp-time timestamp)))
+             (next-item (items order)
+               (cl-case order
+                 (position (cl-first (cl-sort items #'< :key #'cl-first)))
+                 (due-date (cl-first (cl-sort items #'< :key #'cl-second)))
+                 (random (cl-random-elt items))
+                 (t (cl-etypecase order (function (funcall order items)))))))
+    (let ((order (org-srs-review-order-new-review)))
       (cl-multiple-value-bind (new-items review-items)
-          (cl-loop with items = (org-srs-review-due-items source)
-                   with predicate-new = (org-srs-query-predicate 'new)
+          (cl-loop with predicate-new = (org-srs-query-predicate 'new)
+                   and predicate-learned = (org-srs-query-predicate 'learned)
+                   and predicate-due = (org-srs-query-predicate 'due)
+                   and predicate-ahead = (org-srs-query-predicate `(due ,(org-srs-review-learn-ahead-time)))
+                   with items = (org-srs-review-due-items source (org-srs-time-tomorrow) (org-srs-time-tomorrow))
                    for item in items
                    for index from 0
-                   do (apply #'org-srs-item-goto item)
-                   if (funcall predicate-new) collect (list index (timestamp-seconds) item) into new-items
-                   else collect (list index (timestamp-seconds) item) into review-items
-                   finally (cl-return (cl-values new-items review-items)))
+                   do (apply #'org-srs-item-goto item) (setf item (list index (timestamp-seconds) item))
+                   if (funcall predicate-new)
+                   if (funcall predicate-due) collect item into new-due-items
+                   else if (funcall predicate-ahead) collect item into new-ahead-items end
+                   else if (funcall predicate-learned)
+                   if (funcall predicate-due) collect item into learned-due-items
+                   else if (funcall predicate-ahead) collect item into learned-ahead-items end
+                   else
+                   if (funcall predicate-due) collect item into review-due-items
+                   else if (funcall predicate-ahead) collect item into review-ahead-items end
+                   finally
+                   (cl-assert (null new-ahead-items))
+                   (cl-return
+                    (cl-case order
+                      (new-ahead
+                       (cl-values
+                        (and (not learned-due-items) (or new-due-items new-ahead-items))
+                        (or (or learned-due-items learned-ahead-items) (or review-due-items review-ahead-items))))
+                      (review-ahead
+                       (cl-values
+                        (and (not review-due-items) (or new-due-items new-ahead-items))
+                        (or (or review-due-items review-ahead-items) (or learned-due-items learned-ahead-items))))
+                      (t (let ((review-due-items (nconc learned-due-items review-due-items))
+                               (review-ahead-items (nconc learned-ahead-items review-ahead-items)))
+                           (cl-values
+                            (or new-due-items (and (not review-due-items) new-ahead-items))
+                            (or review-due-items (and (not new-due-items) review-ahead-items))))))))
         (let* ((new-item (next-item new-items (org-srs-review-order-new)))
                (review-item (next-item review-items (org-srs-review-order-review)))
                (items (cl-delete nil (list new-item review-item)))
-               (order (org-srs-review-order-new-review))
                (order (cl-case order
-                        (review-first (cl-disjoin #'cl-second #'cl-first))
-                        (new-first #'cl-first)
+                        ((review-first review-ahead) (cl-disjoin #'cl-second #'cl-first))
+                        ((new-first new-ahead) #'cl-first)
                         (t order))))
           (cl-third (next-item items order)))))))
 
