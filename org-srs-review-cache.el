@@ -148,6 +148,10 @@ from a large set of review items."
   (org-srs-property-let ((org-srs-review-cache-query-p (or org-srs-review-cache (org-srs-review-cache-query-p))))
     (apply fun args)))
 
+(define-advice org-srs-review-rate (:around (fun &rest args) org-srs-review-cache)
+  (org-srs-property-let ((org-srs-review-cache-query-p (or org-srs-review-cache (org-srs-review-cache-query-p))))
+    (apply fun args)))
+
 (defun org-srs-review-cache-after-rate ()
   (defvar org-srs-review-rating)
   (when (org-srs-review-cache-query-p)
@@ -188,17 +192,20 @@ from a large set of review items."
 (define-advice org-srs-query-predicate (:around (fun &rest args) org-srs-review-cache)
   (if (and (org-srs-reviewing-p) (org-srs-review-cache-query-p) (not (bound-and-true-p org-srs-query-predicate)))
       (cl-destructuring-bind (desc) args
-        (lambda ()
-          (cl-loop with cache = (org-srs-review-cache)
-                   with target-item = (org-srs-item-at-point)
-                   initially (cl-assert (and (org-srs-reviewing-p) (org-srs-review-cache-query-p)))
-                   for (predicate . items) in (org-srs-review-cache-queries cache)
-                   for sub-predicate-p = (org-srs-review-cache-sub-predicate-p desc predicate)
-                   when sub-predicate-p
-                   if (cl-loop for item in items thereis (org-srs-review-cache-item-equal item target-item)) return t
-                   else if (eq sub-predicate-p 'equal) return nil
-                   finally (cl-return (cl-find target-item (org-srs-query desc (org-srs-review-cache-source cache))
-                                               :test #'org-srs-review-cache-item-equal)))))
+        (cl-etypecase desc
+          ((or list symbol)
+           (lambda (&rest args)
+             (cl-loop with cache = (org-srs-review-cache)
+                      with target-item = (or args (cl-multiple-value-list (org-srs-item-at-point)))
+                      initially (cl-assert (and (org-srs-reviewing-p) (org-srs-review-cache-query-p)))
+                      for (predicate . items) in (org-srs-review-cache-queries cache)
+                      for sub-predicate-p = (org-srs-review-cache-sub-predicate-p desc predicate)
+                      when sub-predicate-p
+                      if (cl-loop for item in items thereis (org-srs-review-cache-item-equal item target-item)) return t
+                      else if (eq sub-predicate-p 'equal) return nil
+                      finally (cl-return (cl-find target-item (org-srs-query desc (org-srs-review-cache-source cache))
+                                                  :test #'org-srs-review-cache-item-equal)))))
+          (function desc)))
     (apply fun args)))
 
 (defmacro org-srs-review-cache-without-query-predicate (&rest body)
@@ -210,6 +217,13 @@ from a large set of review items."
 
 (define-advice org-srs-query (:around (fun &rest args) org-srs-query-predicate@org-srs-review-cache)
   (org-srs-review-cache-without-query-predicate (apply fun args)))
+
+(define-advice org-srs-query-item-p (:around (fun . (predicate &rest item)) org-srs-query-predicate@org-srs-review-cache)
+  (if (and (org-srs-reviewing-p) (org-srs-review-cache-query-p))
+      (progn
+        (cl-assert (not (bound-and-true-p org-srs-query-predicate)))
+        (if item (apply predicate item) (apply fun predicate item)))
+    (apply fun predicate item)))
 
 (provide 'org-srs-review-cache)
 ;;; org-srs-review-cache.el ends here
