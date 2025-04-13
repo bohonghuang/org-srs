@@ -47,6 +47,10 @@
     (function desc)
     (t (apply #'org-srs-query-ensure-predicate (ensure-list desc)))))
 
+(defun org-srs-query-item-p (predicate &rest item)
+  (let ((predicate (org-srs-query-predicate predicate)))
+    (if item (org-srs-item-with-current item (funcall predicate)) (funcall predicate))))
+
 (defun org-srs-query-predicate-and (&rest predicates)
   (lambda () (cl-loop for predicate in predicates always (funcall predicate))))
 
