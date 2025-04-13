@@ -121,9 +121,9 @@
   (re-search-forward org-srs-log-latest-timestamp-regexp (org-srs-table-end))
   (match-string-no-properties 2))
 
-(cl-defun org-srs-item-due-timestamp (&optional (item nil itemp) &rest args)
-  (if itemp
-      (org-srs-item-with-current (item . args)
+(cl-defun org-srs-item-due-timestamp (&rest args)
+  (if args
+      (org-srs-item-with-current args
         (org-srs-item-due-timestamp-1))
     (save-excursion
       (org-srs-item-due-timestamp-1))))

@@ -177,8 +177,6 @@
              (cl-disjoin (&rest functions)
                (lambda (&rest args)
                  (cl-loop for function in functions thereis (apply function args))))
-             (timestamp-seconds (&optional (timestamp (org-srs-item-due-timestamp)))
-               (time-to-seconds (org-srs-timestamp-time timestamp)))
              (next-item (items order)
                (cl-case order
                  (position (cl-first (cl-sort items #'< :key #'cl-first)))
@@ -194,16 +192,17 @@
                    with items = (org-srs-review-due-items source (org-srs-time-tomorrow) (org-srs-time-tomorrow))
                    for item in items
                    for index from 0
-                   do (apply #'org-srs-item-goto item) (setf item (list index (timestamp-seconds) item))
-                   if (funcall predicate-new)
-                   if (funcall predicate-due) collect item into new-due-items
-                   else if (funcall predicate-ahead) collect item into new-ahead-items end
-                   else if (funcall predicate-learned)
-                   if (funcall predicate-due) collect item into learned-due-items
-                   else if (funcall predicate-ahead) collect item into learned-ahead-items end
+                   for time = (time-to-seconds (org-srs-timestamp-time (apply #'org-srs-item-due-timestamp item)))
+                   for item-elem = (list index time item)
+                   if (apply #'org-srs-query-item-p predicate-new item)
+                   if (apply #'org-srs-query-item-p predicate-due item) collect item-elem into new-due-items
+                   else if (apply #'org-srs-query-item-p predicate-ahead item) collect item-elem into new-ahead-items end
+                   else if (apply #'org-srs-query-item-p predicate-learned item)
+                   if (apply #'org-srs-query-item-p predicate-due item) collect item-elem into learned-due-items
+                   else if (apply #'org-srs-query-item-p predicate-ahead item) collect item-elem into learned-ahead-items end
                    else
-                   if (funcall predicate-due) collect item into review-due-items
-                   else if (funcall predicate-ahead) collect item into review-ahead-items end
+                   if (apply #'org-srs-query-item-p predicate-due item) collect item-elem into review-due-items
+                   else if (apply #'org-srs-query-item-p predicate-ahead item) collect item-elem into review-ahead-items end
                    finally
                    (cl-assert (null new-ahead-items))
                    (cl-return
