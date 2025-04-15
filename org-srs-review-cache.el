@@ -47,6 +47,7 @@
   (source nil :type t)
   (queries nil :type list)
   (pending nil :type list)
+  (time (floor (time-to-seconds)) :type fixnum)
   (markers (make-hash-table :test #'equal) :type hash-table))
 
 (defvar org-srs-review-cache nil)
@@ -67,22 +68,32 @@
 
 (defconst org-srs-review-cache-null (make-symbol (symbol-name 'nil)))
 
+(cl-defun org-srs-review-cache-update-pending-1 (&optional (cache (org-srs-review-cache)))
+  (setf (org-srs-review-cache-pending cache)
+        (cl-loop with queries = (org-srs-review-cache-queries cache)
+                 for time-predicate-item in (org-srs-review-cache-pending cache)
+                 for (time . (predicate . item)) = time-predicate-item
+                 for due-time = (org-srs-review-cache-query-predicate-due-time predicate)
+                 if (cl-plusp (org-srs-time-difference time due-time))
+                 collect time-predicate-item
+                 else
+                 do (cl-assert (cl-assoc predicate queries :test #'equal))
+                 (push item (alist-get predicate queries nil nil #'equal)))))
+
+(cl-defun org-srs-review-cache-update-pending (&optional (cache (org-srs-review-cache)))
+  (let ((time (floor (time-to-seconds (org-srs-time-now)))))
+    (cl-assert (>= time (org-srs-review-cache-time cache)))
+    (when (> time (org-srs-review-cache-time cache))
+      (org-srs-review-cache-update-pending-1 cache)
+      (setf (org-srs-review-cache-time cache) time))))
+
 (defun org-srs-review-cache-query (predicate &optional source)
   (if-let ((cache (org-srs-review-cache)))
-      (cl-symbol-macrolet ((queries (org-srs-review-cache-queries cache)))
+      (let ((queries (org-srs-review-cache-queries cache)))
         (cl-assert (org-srs-review-cache-source cache))
         (when source (cl-assert (equal (org-srs-review-cache-source cache) source)))
-        (save-window-excursion
-          (save-excursion
-            (setf (org-srs-review-cache-pending cache)
-                  (cl-loop for time-predicate-item in (org-srs-review-cache-pending cache)
-                           for (time . (predicate . item)) = time-predicate-item
-                           for due-time = (org-srs-review-cache-query-predicate-due-time predicate)
-                           if (cl-plusp (org-srs-time-difference time due-time))
-                           collect time-predicate-item
-                           else
-                           do (push item (alist-get predicate queries nil nil #'equal))))
-            (alist-get predicate queries org-srs-review-cache-null t #'equal))))
+        (org-srs-review-cache-update-pending cache)
+        (alist-get predicate queries org-srs-review-cache-null t #'equal))
     org-srs-review-cache-null))
 
 (defun \(setf\ org-srs-review-cache-query\) (value predicate &optional source)
