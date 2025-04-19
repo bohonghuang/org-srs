@@ -171,6 +171,13 @@
   :group 'org-srs-review
   :type `(choice . ,org-srs-review-orders))
 
+(defun org-srs-review-item-file+position (&rest args)
+  (let* ((marker (apply #'org-srs-item-marker args))
+         (buffer (marker-buffer marker))
+         (name (or (buffer-file-name buffer) (buffer-name buffer)))
+         (position (marker-position marker)))
+    (format (eval-when-compile (format "%%s/%%0%dx" (length (format "%x" most-positive-fixnum)))) name position)))
+
 (cl-defun org-srs-review-next-due-item (&optional (source (current-buffer)))
   (cl-flet* ((cl-random-elt (sequence)
                (when sequence (elt sequence (random (length sequence)))))
@@ -179,8 +186,8 @@
                  (cl-loop for function in functions thereis (apply function args))))
              (next-item (items order)
                (cl-case order
-                 (position (cl-first (cl-sort items #'< :key #'cl-first)))
-                 (due-date (cl-first (cl-sort items #'< :key #'cl-second)))
+                 (position (cl-first (cl-sort items #'string< :key (apply-partially #'apply #'org-srs-review-item-file+position))))
+                 (due-date (cl-first (cl-sort items #'org-srs-time< :key (apply-partially #'apply #'org-srs-item-due-time))))
                  (random (cl-random-elt items))
                  (t (cl-etypecase order (function (funcall order items)))))))
     (let ((order (org-srs-review-order-new-review)))
@@ -191,18 +198,15 @@
                    and predicate-ahead = (org-srs-query-predicate `(and (due ,(org-srs-review-learn-ahead-time))))
                    with items = (org-srs-review-due-items source (org-srs-time-tomorrow) (org-srs-time-tomorrow))
                    for item in items
-                   for index from 0
-                   for time = (time-to-seconds (apply #'org-srs-item-due-time item))
-                   for item-elem = (list index time item)
                    if (apply #'org-srs-query-item-p predicate-new item)
-                   if (apply #'org-srs-query-item-p predicate-due item) collect item-elem into new-due-items
-                   else if (apply #'org-srs-query-item-p predicate-ahead item) collect item-elem into new-ahead-items end
+                   if (apply #'org-srs-query-item-p predicate-due item) collect item into new-due-items
+                   else if (apply #'org-srs-query-item-p predicate-ahead item) collect item into new-ahead-items end
                    else if (apply #'org-srs-query-item-p predicate-learned item)
-                   if (apply #'org-srs-query-item-p predicate-due item) collect item-elem into learned-due-items
-                   else if (apply #'org-srs-query-item-p predicate-ahead item) collect item-elem into learned-ahead-items end
+                   if (apply #'org-srs-query-item-p predicate-due item) collect item into learned-due-items
+                   else if (apply #'org-srs-query-item-p predicate-ahead item) collect item into learned-ahead-items end
                    else
-                   if (apply #'org-srs-query-item-p predicate-due item) collect item-elem into review-due-items
-                   else if (apply #'org-srs-query-item-p predicate-ahead item) collect item-elem into review-ahead-items end
+                   if (apply #'org-srs-query-item-p predicate-due item) collect item into review-due-items
+                   else if (apply #'org-srs-query-item-p predicate-ahead item) collect item into review-ahead-items end
                    finally
                    (cl-assert (null new-ahead-items))
                    (cl-return
@@ -227,7 +231,7 @@
                         ((review-first review-ahead) (cl-disjoin #'cl-second #'cl-first))
                         ((new-first new-ahead) #'cl-first)
                         (t order))))
-          (cl-third (next-item items order)))))))
+          (next-item items order))))))
 
 (defun org-srs-review-sources ()
   (cl-delete
