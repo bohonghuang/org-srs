@@ -192,7 +192,7 @@
                    with items = (org-srs-review-due-items source (org-srs-time-tomorrow) (org-srs-time-tomorrow))
                    for item in items
                    for index from 0
-                   for time = (time-to-seconds (org-srs-timestamp-time (apply #'org-srs-item-due-timestamp item)))
+                   for time = (time-to-seconds (apply #'org-srs-item-due-time item))
                    for item-elem = (list index time item)
                    if (apply #'org-srs-query-item-p predicate-new item)
                    if (apply #'org-srs-query-item-p predicate-due item) collect item-elem into new-due-items

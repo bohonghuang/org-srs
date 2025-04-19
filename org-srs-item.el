@@ -121,12 +121,20 @@
   (re-search-forward org-srs-log-latest-timestamp-regexp (org-srs-table-end))
   (match-string-no-properties 2))
 
-(cl-defun org-srs-item-due-timestamp (&rest args)
+(defun org-srs-item-due-timestamp (&rest args)
   (if args
       (org-srs-item-with-current args
         (org-srs-item-due-timestamp-1))
     (save-excursion
       (org-srs-item-due-timestamp-1))))
+
+(defun org-srs-item-due-time (&rest args)
+  (org-srs-timestamp-time (apply #'org-srs-item-due-timestamp args)))
+
+(defun org-srs-item-marker (&rest args)
+  (let ((item (or args (cl-multiple-value-list (org-srs-item-at-point)))))
+    (org-srs-item-with-current item
+      (point-marker))))
 
 (defun org-srs-item-repeat (item rating)
   (org-srs-item-goto item)
