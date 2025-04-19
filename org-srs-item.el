@@ -136,6 +136,12 @@
     (org-srs-item-with-current item
       (point-marker))))
 
+(defun org-srs-item-priority (&rest args)
+  (org-srs-item-with-current args
+    (org-back-to-heading)
+    (cl-assert (looking-at org-heading-regexp))
+    (org-get-priority (match-string 0))))
+
 (defun org-srs-item-repeat (item rating)
   (org-srs-item-goto item)
   (org-srs-log-repeat rating))
