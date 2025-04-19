@@ -74,7 +74,7 @@
                  for time-predicate-item in (org-srs-review-cache-pending cache)
                  for (time . (predicate . item)) = time-predicate-item
                  for due-time = (org-srs-review-cache-query-predicate-due-time predicate)
-                 if (cl-plusp (org-srs-time-difference time due-time))
+                 if (org-srs-time> time due-time)
                  collect time-predicate-item
                  else
                  do (cl-assert (cl-assoc predicate queries :test #'equal))
@@ -141,7 +141,7 @@ from a large set of review items."
                                            (setf (gethash item (org-srs-review-cache-markers cache)) (point-marker)))
                                          (cache-due-time ()
                                            (let ((due-time (org-srs-timestamp-time (org-srs-item-due-timestamp))))
-                                             (when (cl-plusp (org-srs-time-difference tomorrow-time due-time))
+                                             (when (org-srs-time> tomorrow-time due-time)
                                                (let ((item (cache-item)))
                                                  (setf (org-srs-review-cache-pending cache)
                                                        (cons (cons due-time (cons predicate item))
@@ -188,7 +188,7 @@ from a large set of review items."
                                      (_ (cons (funcall (org-srs-query-predicate predicate)) nil)))
                                  collect (cons predicate (funcall (if all-satisfied-p #'cl-adjoin #'cl-delete)
                                                                   item items :test #'org-srs-review-cache-item-equal))
-                                 when (cl-plusp (org-srs-time-difference tomorrow-time due-time))
+                                 when (org-srs-time> tomorrow-time due-time)
                                  when (and rest-satisfied-p (not all-satisfied-p))
                                  do (push (cons due-time (cons predicate item)) (org-srs-review-cache-pending cache)))))))))
       (org-srs-review-cache-clear))))
