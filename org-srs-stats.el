@@ -61,7 +61,7 @@
 (cl-defun org-srs-stats-call-with-rating-simulator (thunk)
   (org-srs-property-let org-srs-algorithm
     (org-srs-property-let org-srs-schedule
-      (org-srs-property-let ((org-srs-review-cache-query-p nil))
+      (org-srs-property-let ((org-srs-review-cache-p nil))
         (defvar org-srs-time-now)
         (let ((org-srs-time-now (cl-constantly (org-srs-time-now)))
               (org-srs-table-with-temp-buffer-function #'funcall)
