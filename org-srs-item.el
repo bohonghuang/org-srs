@@ -75,18 +75,12 @@
 
 (cl-defun org-srs-item-goto (item &optional (id (org-id-get)) (buffer (current-buffer)))
   (let ((org-link-search-must-match-exact-headline t))
+    (cl-assert (eq (window-buffer) (current-buffer)))
     (unless (eq buffer (current-buffer))
-      (cl-assert (eq (window-buffer) (current-buffer)))
       (switch-to-buffer buffer nil t)
       (cl-assert (eq (window-buffer) buffer)))
     (cl-assert (eq (current-buffer) buffer))
     (org-srs-item-link-search (org-srs-item-link item id))))
-
-(defun org-srs-item-exists-p (item &rest args)
-  (save-excursion
-    (ignore-error error
-      (apply #'org-srs-item-goto item args)
-      t)))
 
 (defmacro org-srs-item-save-selected-window-excursion (&rest body)
   (declare (indent 0))
@@ -94,10 +88,13 @@
     `(let ((,buffer (window-buffer)))
        (unwind-protect (progn . ,body)
          (unless (eq ,buffer (window-buffer))
-           (setf (window-buffer) ,buffer))))))
+           (switch-to-buffer ,buffer nil t)
+           (cl-assert (eq (window-buffer) ,buffer))
+           (cl-assert (eq (window-buffer) (current-buffer))))))))
 
 (cl-defun org-srs-item-call-with-current (thunk . (item &optional (id (org-id-get)) (buffer (current-buffer))))
-  (if (eq buffer (current-buffer))
+  (cl-assert (eq (window-buffer) (current-buffer)))
+  (if (eq (window-buffer) buffer)
       (save-excursion (org-srs-item-goto item id buffer) (funcall thunk))
     (org-srs-item-save-selected-window-excursion
       (switch-to-buffer buffer nil t)
@@ -159,8 +156,7 @@
       (org-srs-item-from-match-data))))
 
 (cl-defun org-srs-item-bounds (&optional (item (cl-nth-value 0 (org-srs-item-at-point))) &rest args)
-  (save-excursion
-    (apply #'org-srs-item-goto item args)
+  (org-srs-item-with-current (item . args)
     (let ((element (org-element-at-point)))
       (cons (org-element-begin element) (org-element-end element)))))
 
@@ -169,6 +165,9 @@
     (delete-region start end)))
 
 (cl-defgeneric org-srs-item-review (type &rest args))
+
+(defun org-srs-item-exists-p (&rest args)
+  (ignore-error error (org-srs-item-with-current args t)))
 
 (cl-defgeneric org-srs-item-new (type &rest args)
   (let ((item (cons type args)))
