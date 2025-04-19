@@ -55,6 +55,14 @@
 (defun org-srs-time-difference (time-a time-b)
   (- (time-to-seconds time-a) (time-to-seconds time-b)))
 
+(cl-defmacro org-srs-time-define-comparators (&optional (prefix 'org-srs-time))
+  (cl-with-gensyms (a b)
+    `(progn . ,(cl-loop for comparator in '(< <= > >= = /=)
+                        collect `(defun ,(intern (format "%s%s" prefix comparator)) (,a ,b)
+                                   (,comparator (,(intern (format "%s-%s" prefix 'difference)) ,a ,b) 0))))))
+
+(org-srs-time-define-comparators)
+
 (cl-defun org-srs-time-truncate-hms (time)
   (let* ((time (decode-time time))
          (hms (cl-subseq time 0 3)))
@@ -96,13 +104,15 @@
   (- (time-to-seconds (org-srs-timestamp-time time-a))
      (time-to-seconds (org-srs-timestamp-time time-b))))
 
+(org-srs-time-define-comparators org-srs-timestamp)
+
 (defun org-srs-timestamp+ (time &rest desc)
   (org-srs-timestamp-now
    (+ (time-to-seconds (org-srs-timestamp-time time))
       (org-srs-time-desc-seconds desc))))
 
 (defun org-srs-timestamp-min (&rest args)
-  (cl-reduce (lambda (time-a time-b) (if (cl-plusp (org-srs-timestamp-difference time-a time-b)) time-b time-a)) args))
+  (cl-reduce (lambda (time-a time-b) (if (org-srs-timestamp> time-a time-b) time-b time-a)) args))
 
 (defconst org-srs-timestamp-regexp (rx (= 4 digit) "-" (= 2 digit) "-" (= 2 digit) "T" (= 2 digit) ":" (= 2 digit) ":" (= 2 digit) "Z"))
 
