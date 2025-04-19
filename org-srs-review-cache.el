@@ -19,7 +19,7 @@
 
 ;;; Commentary:
 
-;; This package provides a caching mechanism for query results in a
+;; This package provides caching mechanisms for query results in a
 ;; review session, speeding up retrieving the next review item.
 
 ;;; Code:
@@ -39,15 +39,16 @@
 (require 'org-srs-query)
 
 (defgroup org-srs-review-cache nil
-  "Caching mechanism to improve scheduling performance in a review session."
+  "Caching mechanisms to improve scheduling performance in a review session."
   :group 'org-srs-review
   :prefix "org-srs-review-cache-")
 
-(cl-defstruct org-srs-review-cache
+(cl-defstruct (org-srs-review-cache (:predicate org-srs-review-cache--p))
   (source nil :type t)
+  (time (floor (time-to-seconds)) :type fixnum)
   (queries nil :type list)
   (pending nil :type list)
-  (time (floor (time-to-seconds)) :type fixnum)
+  (due-times (make-hash-table :test #'equal) :type hash-table)
   (markers (make-hash-table :test #'equal) :type hash-table))
 
 (defvar org-srs-review-cache nil)
@@ -102,21 +103,53 @@
     (when source (cl-assert (equal (org-srs-review-cache-source cache) source)))
     (setf (alist-get predicate (org-srs-review-cache-queries cache) org-srs-review-cache-null t #'equal) value)))
 
-(org-srs-property-defcustom org-srs-review-cache-query-p nil
-  "Non-nil means to cache query results in a review session.
+(org-srs-property-defcustom org-srs-review-cache-p nil
+  "Non-nil means to enable caching mechanisms in a review session.
 
 This can increase the speed of retrieving the next review item
 from a large set of review items."
   :group 'org-srs-review-cache
   :type 'boolean)
 
+(define-advice org-srs-review-cache-p (:around (fun &rest args) org-srs-review-cache)
+  (if (and args (null (cdr args))) (apply #'org-srs-review-cache--p args) (apply fun args)))
+
+(defun org-srs-review-cache-active-p ()
+  (and (org-srs-reviewing-p) (org-srs-review-cache-p)))
+
+(defmacro org-srs-review-cache-ensure-gethash (key hash-table &optional default)
+  (cl-once-only (key hash-table)
+    (cl-with-gensyms (value null)
+      `(let ((,value (gethash ,key ,hash-table ',null)))
+         (if (eq ,value ',null)
+             (setf (gethash ,key ,hash-table ',null) ,default)
+           ,value)))))
+
+(defun org-srs-review-cache-item (&rest args)
+  (cl-destructuring-bind (item &optional (id (org-id-get)) (buffer (current-buffer))) args
+    (list item id buffer)))
+
+(define-advice org-srs-item-due-time (:around (fun &rest args) org-srs-review-cache)
+  (if (and (org-srs-review-cache-active-p) args)
+      (let ((args (apply #'org-srs-review-cache-item args))
+            (due-times (org-srs-review-cache-due-times (org-srs-review-cache))))
+        (org-srs-review-cache-ensure-gethash args due-times (apply fun args)))
+    (apply fun args)))
+
+(define-advice org-srs-item-marker (:around (fun &rest args) org-srs-review-cache)
+  (if (and (org-srs-review-cache-active-p) args)
+      (let ((args (apply #'org-srs-review-cache-item args))
+            (markers (org-srs-review-cache-markers (org-srs-review-cache))))
+        (org-srs-review-cache-ensure-gethash args markers (apply fun args)))
+    (apply fun args)))
+
 (define-advice org-srs-item-goto (:around (fun &rest args) org-srs-review-cache)
-  (if (and (org-srs-reviewing-p) (org-srs-review-cache-query-p))
-      (cl-destructuring-bind (item &optional (id (org-id-get)) (buffer (current-buffer)) &aux (args (list item id buffer))) args
-        (let* ((markers (org-srs-review-cache-markers (org-srs-review-cache)))
-               (marker (or (gethash args markers) (setf (gethash args markers) (progn (apply fun args) (point-marker))))))
-          (switch-to-buffer (marker-buffer marker) nil t)
-          (goto-char marker)))
+  (cl-assert args)
+  (defvar org-srs-item-marker@org-srs-review-cache)
+  (if (and (not (bound-and-true-p org-srs-item-marker@org-srs-review-cache)) (org-srs-review-cache-active-p))
+      (let ((marker (let ((org-srs-item-marker@org-srs-review-cache t)) (apply #'org-srs-item-marker args))))
+        (switch-to-buffer (marker-buffer marker) nil t)
+        (goto-char marker))
     (apply fun args)))
 
 (defun org-srs-review-cache-item-equal (item-a item-b)
@@ -126,7 +159,7 @@ from a large set of review items."
 
 (define-advice org-srs-query (:around (fun &rest args) org-srs-review-cache)
   (cl-destructuring-bind (predicate &optional (source (or (buffer-file-name) default-directory))) args
-    (if (and (org-srs-reviewing-p) (org-srs-review-cache-query-p))
+    (if (org-srs-review-cache-active-p)
         (let ((result (org-srs-review-cache-query predicate source)))
           (if (eq result org-srs-review-cache-null)
               (let ((query-predicate
@@ -156,41 +189,41 @@ from a large set of review items."
       (funcall fun predicate source))))
 
 (define-advice org-srs-review-start (:around (fun &rest args) org-srs-review-cache)
-  (org-srs-property-let ((org-srs-review-cache-query-p (or org-srs-review-cache (org-srs-review-cache-query-p))))
+  (org-srs-property-let (org-srs-review-cache-p)
     (apply fun args)))
 
 (define-advice org-srs-review-rate (:around (fun &rest args) org-srs-review-cache)
-  (org-srs-property-let ((org-srs-review-cache-query-p (or org-srs-review-cache (org-srs-review-cache-query-p))))
+  (org-srs-property-let (org-srs-review-cache-p)
     (apply fun args)))
 
 (defun org-srs-review-cache-after-rate ()
   (defvar org-srs-review-rating)
-  (when (org-srs-review-cache-query-p)
+  (when (org-srs-review-cache-p)
     (if org-srs-review-rating
         (with-current-buffer (marker-buffer org-srs-review-item-marker)
           (save-excursion
             (goto-char org-srs-review-item-marker)
             (save-restriction
               (let* ((cache (org-srs-review-cache))
-                     (due-time (org-srs-timestamp-time (org-srs-item-due-timestamp))))
+                     (item (cl-multiple-value-call #'org-srs-review-cache-item (org-srs-item-at-point)))
+                     (due-time (setf (gethash item (org-srs-review-cache-due-times cache)) (org-srs-item-due-time))))
                 (narrow-to-region (org-srs-item-begin) (org-srs-item-end))
-                (let ((item (nconc (cl-multiple-value-list (org-srs-item-at-point)) (list (current-buffer)))))
-                  (setf (org-srs-review-cache-pending cache)
-                        (cl-delete item (org-srs-review-cache-pending cache) :key #'cddr :test #'org-srs-review-cache-item-equal)
-                        (org-srs-review-cache-queries cache)
-                        (cl-loop with tomorrow-time = (org-srs-time-tomorrow)
-                                 for (predicate . items) in (org-srs-review-cache-queries cache)
-                                 for (all-satisfied-p . rest-satisfied-p)
-                                 = (pcase predicate
-                                     (`(and ,(and (or 'due `(due . ,_)) first-predicate) . ,rest-predicates)
-                                      (when (funcall (org-srs-query-predicate `(and . ,rest-predicates)))
-                                        (cons (funcall (org-srs-query-predicate first-predicate)) t)))
-                                     (_ (cons (funcall (org-srs-query-predicate predicate)) nil)))
-                                 collect (cons predicate (funcall (if all-satisfied-p #'cl-adjoin #'cl-delete)
-                                                                  item items :test #'org-srs-review-cache-item-equal))
-                                 when (org-srs-time> tomorrow-time due-time)
-                                 when (and rest-satisfied-p (not all-satisfied-p))
-                                 do (push (cons due-time (cons predicate item)) (org-srs-review-cache-pending cache)))))))))
+                (setf (org-srs-review-cache-pending cache)
+                      (cl-delete item (org-srs-review-cache-pending cache) :key #'cddr :test #'org-srs-review-cache-item-equal)
+                      (org-srs-review-cache-queries cache)
+                      (cl-loop with tomorrow-time = (org-srs-time-tomorrow)
+                               for (predicate . items) in (org-srs-review-cache-queries cache)
+                               for (all-satisfied-p . rest-satisfied-p)
+                               = (pcase predicate
+                                   (`(and ,(and (or 'due `(due . ,_)) first-predicate) . ,rest-predicates)
+                                    (when (funcall (org-srs-query-predicate `(and . ,rest-predicates)))
+                                      (cons (funcall (org-srs-query-predicate first-predicate)) t)))
+                                   (_ (cons (funcall (org-srs-query-predicate predicate)) nil)))
+                               collect (cons predicate (funcall (if all-satisfied-p #'cl-adjoin #'cl-delete)
+                                                                item items :test #'org-srs-review-cache-item-equal))
+                               when (org-srs-time> tomorrow-time due-time)
+                               when (and rest-satisfied-p (not all-satisfied-p))
+                               do (push (cons due-time (cons predicate item)) (org-srs-review-cache-pending cache))))))))
       (org-srs-review-cache-clear))))
 
 (add-hook 'org-srs-review-after-rate-hook #'org-srs-review-cache-after-rate 95)
@@ -201,14 +234,14 @@ from a large set of review items."
     (`(and . ,preds) (cl-loop for pred2 in preds thereis (org-srs-review-cache-sub-predicate-p pred1 pred2)))))
 
 (define-advice org-srs-query-predicate (:around (fun &rest args) org-srs-review-cache)
-  (if (and (org-srs-reviewing-p) (org-srs-review-cache-query-p) (not (bound-and-true-p org-srs-query-predicate)))
+  (if (and (org-srs-review-cache-active-p) (not (bound-and-true-p org-srs-query-predicate@org-srs-review-cache)))
       (cl-destructuring-bind (desc) args
         (cl-etypecase desc
           ((or list symbol)
            (lambda (&rest args)
              (cl-loop with cache = (org-srs-review-cache)
                       with target-item = (or args (cl-multiple-value-list (org-srs-item-at-point)))
-                      initially (cl-assert (and (org-srs-reviewing-p) (org-srs-review-cache-query-p)))
+                      initially (cl-assert (org-srs-review-cache-active-p))
                       for (predicate . items) in (org-srs-review-cache-queries cache)
                       for sub-predicate-p = (org-srs-review-cache-sub-predicate-p desc predicate)
                       when sub-predicate-p
@@ -221,7 +254,9 @@ from a large set of review items."
 
 (defmacro org-srs-review-cache-without-query-predicate (&rest body)
   (declare (indent 0))
-  `(cl-locally (defvar org-srs-query-predicate) (let ((org-srs-query-predicate t)) . ,body)))
+  `(cl-locally
+    (defvar org-srs-query-predicate@org-srs-review-cache)
+    (let ((org-srs-query-predicate@org-srs-review-cache t)) . ,body)))
 
 (define-advice org-srs-review-cache-after-rate (:around (fun &rest args) org-srs-query-predicate@org-srs-review-cache)
   (org-srs-review-cache-without-query-predicate (apply fun args)))
@@ -230,9 +265,9 @@ from a large set of review items."
   (org-srs-review-cache-without-query-predicate (apply fun args)))
 
 (define-advice org-srs-query-item-p (:around (fun . (predicate &rest item)) org-srs-query-predicate@org-srs-review-cache)
-  (if (and (org-srs-reviewing-p) (org-srs-review-cache-query-p))
+  (if (org-srs-review-cache-active-p)
       (progn
-        (cl-assert (not (bound-and-true-p org-srs-query-predicate)))
+        (cl-assert (not (bound-and-true-p org-srs-query-predicate@org-srs-review-cache)))
         (if item (apply predicate item) (apply fun predicate item)))
     (apply fun predicate item)))
 
