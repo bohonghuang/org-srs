@@ -140,7 +140,7 @@ from a large set of review items."
                                          (cache-marker (&optional (item (cache-item)))
                                            (setf (gethash item (org-srs-review-cache-markers cache)) (point-marker)))
                                          (cache-due-time ()
-                                           (let ((due-time (org-srs-timestamp-time (org-srs-item-due-timestamp))))
+                                           (let ((due-time (org-srs-item-due-time)))
                                              (when (org-srs-time> tomorrow-time due-time)
                                                (let ((item (cache-item)))
                                                  (setf (org-srs-review-cache-pending cache)
