@@ -66,7 +66,9 @@
   (let ((org-srs-review-rating rating))
     (run-hooks 'org-srs-review-before-rate-hook))
   (save-excursion
-    (if position (goto-char position) (cl-multiple-value-call #'org-srs-item-goto (org-srs-item-at-point)))
+    (let ((marker (copy-marker (or position (org-srs-item-marker)))))
+      (cl-assert (eq (current-buffer) (marker-buffer marker)))
+      (goto-char marker))
     (org-srs-table-goto-starred-line)
     (cl-assert
      (time-less-p
