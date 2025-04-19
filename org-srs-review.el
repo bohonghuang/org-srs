@@ -149,7 +149,8 @@
 (defconst org-srs-review-orders
   '((const :tag "Position" position)
     (const :tag "Random" random)
-    (const :tag "Due date" due-date)))
+    (const :tag "Due date" due-date)
+    (const :tag "Priority" priority)))
 
 (org-srs-property-defcustom org-srs-review-order-new-review 'review-first
   "Relative display order between new items and review items."
@@ -188,6 +189,7 @@
                (cl-case order
                  (position (cl-first (cl-sort items #'string< :key (apply-partially #'apply #'org-srs-review-item-file+position))))
                  (due-date (cl-first (cl-sort items #'org-srs-time< :key (apply-partially #'apply #'org-srs-item-due-time))))
+                 (priority (cl-first (cl-sort items #'> :key (apply-partially #'apply #'org-srs-item-priority))))
                  (random (cl-random-elt items))
                  (t (cl-etypecase order (function (funcall order items)))))))
     (let ((order (org-srs-review-order-new-review)))
