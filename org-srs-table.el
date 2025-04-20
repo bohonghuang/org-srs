@@ -50,7 +50,7 @@
   (cl-loop for name in (when (save-excursion
                                (goto-char (org-srs-table-begin))
                                (re-search-forward "^[ \t]*| *! *\\(|.*\\)" (org-srs-table-end) t))
-                         (org-split-string (match-string 1) " *| *"))
+                         (org-split-string (match-string-no-properties 1) " *| *"))
            for column from 2
            when (string-match-p "\\`[a-zA-Z][_a-zA-Z0-9]*\\'" name)
            collect (cons (intern name) column)))
@@ -59,9 +59,9 @@
 
 (defun org-srs-table-ensure-read-field (field)
   (if (string-match-p org-srs-table-readable-field-regexp field)
-      (car (read-from-string field)) field))
+      (car (read-from-string field)) (org-no-properties field)))
 
-(cl-defun org-srs-table-lines ()
+(defun org-srs-table-lines ()
   (cl-loop with names = (mapcar #'car (org-srs-table-column-name-number-alist))
            for line in (cdr (org-table-to-lisp))
            when (listp line)
@@ -150,7 +150,7 @@
 
 (defun org-srs-table-field (&optional column)
   (when column (cl-assert (org-srs-table-goto-column column)))
-  (org-table-get nil nil))
+  (org-no-properties (org-table-get nil nil)))
 
 (defun \(setf\ org-srs-table-field\) (value &optional column)
   (if column
@@ -219,7 +219,7 @@
          (cl-loop for string = formula then (if column (replace-match column t t string 1) string)
                   for end = 0 then (1+ start)
                   for start = (or (string-match (rx "$" (group (+? (not blank))) (or "=" "..")) string end) (cl-return string))
-                  for name = (match-string 1 string)
+                  for name = (match-string-no-properties 1 string)
                   for column = (alist-get name org-table-column-names nil nil #'string-equal)))
        formulas)
     formulas))

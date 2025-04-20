@@ -53,7 +53,7 @@
     (goto-char start)
     (cl-loop while (re-search-forward org-srs-item-cloze-regexp end t)
              collect (cl-list*
-                      (read (match-string-no-properties 1)) (match-beginning 0)
+                      (read (match-string 1)) (match-beginning 0)
                       (match-end 0) (match-string 2)
                       (when-let ((hint (match-string 3))) (list hint))))))
 
@@ -160,7 +160,7 @@
   :type 'function)
 
 (defun org-srs-item-cloze-default (start end &optional hint)
-  (let ((identifier (funcall (org-srs-item-cloze-identifier) (buffer-substring-no-properties start end))))
+  (let ((identifier (funcall (org-srs-item-cloze-identifier) (buffer-substring start end))))
     (save-excursion
       (goto-char end)
       (if hint (insert "}{" hint "}}") (insert "}}"))

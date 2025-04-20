@@ -137,7 +137,7 @@
   (org-srs-item-with-current args
     (org-back-to-heading)
     (cl-assert (looking-at org-heading-regexp))
-    (org-get-priority (match-string 0))))
+    (org-get-priority (match-string-no-properties 0))))
 
 (defun org-srs-item-repeat (item rating)
   (org-srs-item-goto item)
@@ -147,7 +147,7 @@
 
 (defun org-srs-item-from-match-data ()
   (let ((id (match-string-no-properties 1)))
-    (cl-values (when (match-string 2) (mapcar #'read (split-string (match-string 2) "::"))) id)))
+    (cl-values (when-let ((string (match-string-no-properties 2))) (mapcar #'read (split-string string "::"))) id)))
 
 (defun org-srs-item-at-point ()
   (save-excursion
