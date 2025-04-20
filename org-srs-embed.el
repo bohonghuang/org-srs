@@ -149,7 +149,7 @@
                                         (point-marker))
                                  (replace-match "\\1")))
              for count from 0
-             for cloze = (string-trim (buffer-substring-no-properties cloze-start cloze-end))
+             for cloze = (string-trim (buffer-substring cloze-start cloze-end))
              do (funcall process-function cloze))))
 
 (cl-defun org-srs-embed-cloze-bounds (&optional (position (point)))
