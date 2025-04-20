@@ -93,10 +93,22 @@
 
 (cl-deftype org-srs-timestamp () 'string)
 
-(defalias 'org-srs-timestamp-time 'parse-iso8601-time-string)
+(defun org-srs-timestamp-time (timestamp)
+  (cl-assert (string-match
+              (rx (group (= 4 digit)) ?- (group (= 2 digit)) ?- (group (= 2 digit)) ?T
+                  (group (= 2 digit)) ?: (group (= 2 digit)) ?: (group (= 2 digit)) ?Z)
+              timestamp))
+  (encode-time
+   (string-to-number (match-string-no-properties 6 timestamp))
+   (string-to-number (match-string-no-properties 5 timestamp))
+   (string-to-number (match-string-no-properties 4 timestamp))
+   (string-to-number (match-string-no-properties 3 timestamp))
+   (string-to-number (match-string-no-properties 2 timestamp))
+   (string-to-number (match-string-no-properties 1 timestamp))
+   t))
 
 (cl-defun org-srs-timestamp-now (&optional (time (org-srs-time-now)))
-  (format-time-string "%FT%TZ" time "UTC0"))
+  (format-time-string "%FT%TZ" time t))
 
 (defalias 'org-srs-timestamp 'org-srs-timestamp-now)
 
