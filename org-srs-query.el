@@ -93,7 +93,7 @@
   (lambda ()
     (save-excursion
       (when (re-search-forward org-srs-log-latest-timestamp-regexp (org-srs-table-end))
-        (time-less-p (org-srs-timestamp-time (match-string 2)) now)))))
+        (time-less-p (org-srs-timestamp-time (match-string-no-properties 2)) now)))))
 
 (cl-defun org-srs-query-predicate-learned
     (&optional
