@@ -60,26 +60,38 @@
               timestamp-scheduled))
           timestamp-scheduled))))
 
-(defun org-srs-schedule-offset-update-due-timestamp (timestamp-due)
-  (if (boundp 'org-srs-review-rating)
-      (when (symbol-value 'org-srs-review-rating)
-        (goto-char org-srs-review-item-marker)
-        (org-srs-table-goto-starred-line)
-        (org-srs-property-let (org-srs-schedule-offset-learn-ahead-time-p)
-          (org-srs-table-with-temp-buffer
-            (setf (org-srs-table-field 'timestamp) (org-srs-schedule-offset-learn-ahead-due-timestamp timestamp-due)))))
-    (setf (org-srs-table-field 'timestamp) (org-srs-schedule-offset-learn-ahead-due-timestamp timestamp-due))))
+(defvar org-srs-schedule-offset-due-timestamp)
 
-(defun org-srs-schedule-offset-before-rate-hook ()
+(cl-defun org-srs-schedule-offset-due-timestamp (&optional (buffer (current-buffer)))
+  (cl-assert (buffer-local-boundp 'org-srs-schedule-offset-due-timestamp buffer))
+  (buffer-local-value 'org-srs-schedule-offset-due-timestamp buffer))
+
+(cl-defun \(setf\ org-srs-schedule-offset-due-timestamp\) (timestamp &optional (buffer (current-buffer)))
+  (cl-assert (xor (buffer-local-boundp 'org-srs-schedule-offset-due-timestamp buffer) timestamp))
+  (if timestamp
+      (setf (buffer-local-value 'org-srs-schedule-offset-due-timestamp buffer) timestamp)
+    (kill-local-variable 'org-srs-schedule-offset-due-timestamp)))
+
+(defun org-srs-schedule-offset-save-due-timestamp ()
   (when (bound-and-true-p org-srs-review-rating)
     (goto-char org-srs-review-item-marker)
     (org-srs-table-goto-starred-line)
-    (org-srs-review-add-hook-once
-     'org-srs-review-after-rate-hook
-     (apply-partially #'org-srs-schedule-offset-update-due-timestamp (org-srs-table-field 'timestamp))
-     80)))
+    (setf (org-srs-schedule-offset-due-timestamp) (org-srs-table-field 'timestamp))))
 
-(add-hook 'org-srs-review-before-rate-hook #'org-srs-schedule-offset-before-rate-hook)
+(add-hook 'org-srs-review-before-rate-hook #'org-srs-schedule-offset-save-due-timestamp)
+
+(defun org-srs-schedule-offset-update-due-timestamp (&optional timestamp-due)
+  (if (boundp 'org-srs-review-rating)
+      (when (symbol-value 'org-srs-review-rating)
+        (let ((timestamp-due (or timestamp-due (cl-shiftf (org-srs-schedule-offset-due-timestamp) nil))))
+          (goto-char org-srs-review-item-marker)
+          (org-srs-table-goto-starred-line)
+          (org-srs-property-let (org-srs-schedule-offset-learn-ahead-time-p)
+            (org-srs-table-with-temp-buffer
+              (setf (org-srs-table-field 'timestamp) (org-srs-schedule-offset-learn-ahead-due-timestamp timestamp-due))))))
+    (setf (org-srs-table-field 'timestamp) (org-srs-schedule-offset-learn-ahead-due-timestamp timestamp-due))))
+
+(add-hook 'org-srs-review-after-rate-hook #'org-srs-schedule-offset-update-due-timestamp 80)
 
 (provide 'org-srs-schedule-offset)
 ;;; org-srs-schedule-offset.el ends here
