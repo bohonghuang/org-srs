@@ -113,6 +113,9 @@
    (org-srs-query-predicate-not (org-srs-query-predicate-new))
    (apply #'org-srs-query-predicate-updated args)))
 
+(defun org-srs-query-predicate-suspended ()
+  #'org-in-commented-heading-p)
+
 (cl-defun org-srs-query-region (predicate &optional (start (point-min)) (end (point-max)))
   (save-excursion
     (cl-loop initially (goto-char start)
