@@ -73,14 +73,20 @@
     (re-search-forward (rx bol "#+NAME:" (+ blank) (literal s) eol)))
   (goto-char (match-beginning 0)))
 
-(cl-defun org-srs-item-goto (item &optional (id (org-id-get)) (buffer (current-buffer)))
-  (let ((org-link-search-must-match-exact-headline t))
+(cl-defun org-srs-item-marker (item &optional (id (org-id-get)) (buffer (current-buffer)))
+  (with-current-buffer buffer
+    (org-srs-item-link-search (org-srs-item-link item id))
+    (point-marker)))
+
+(defun org-srs-item-goto (&rest args)
+  (let* ((marker (apply #'org-srs-item-marker args))
+         (buffer (marker-buffer marker)))
     (cl-assert (eq (window-buffer) (current-buffer)))
     (unless (eq buffer (current-buffer))
       (switch-to-buffer buffer nil t)
       (cl-assert (eq (window-buffer) buffer)))
     (cl-assert (eq (current-buffer) buffer))
-    (org-srs-item-link-search (org-srs-item-link item id))))
+    (goto-char marker)))
 
 (defmacro org-srs-item-save-selected-window-excursion (&rest body)
   (declare (indent 0))
@@ -92,13 +98,12 @@
            (cl-assert (eq (window-buffer) ,buffer))
            (cl-assert (eq (window-buffer) (current-buffer))))))))
 
-(cl-defun org-srs-item-call-with-current (thunk . (item &optional (id (org-id-get)) (buffer (current-buffer))))
-  (cl-assert (eq (window-buffer) (current-buffer)))
-  (if (eq (window-buffer) buffer)
-      (save-excursion (org-srs-item-goto item id buffer) (funcall thunk))
-    (org-srs-item-save-selected-window-excursion
-      (switch-to-buffer buffer nil t)
-      (save-excursion (org-srs-item-goto item id buffer) (funcall thunk)))))
+(defun org-srs-item-call-with-current (thunk &rest args)
+  (let* ((marker (apply #'org-srs-item-marker args))
+         (buffer (marker-buffer marker)))
+    (with-current-buffer buffer
+      (goto-char marker)
+      (funcall thunk))))
 
 (defmacro org-srs-item-with-current (args &rest body)
   (declare (indent 1))
@@ -127,11 +132,6 @@
 
 (defun org-srs-item-due-time (&rest args)
   (org-srs-timestamp-time (apply #'org-srs-item-due-timestamp args)))
-
-(defun org-srs-item-marker (&rest args)
-  (let ((item (or args (cl-multiple-value-list (org-srs-item-at-point)))))
-    (org-srs-item-with-current item
-      (point-marker))))
 
 (defun org-srs-item-priority (&rest args)
   (org-srs-item-with-current args
