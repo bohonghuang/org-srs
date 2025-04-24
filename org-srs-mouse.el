@@ -88,16 +88,12 @@
 
 (defun org-srs-mouse-show-intervals-in-minibuffer ()
   (when (and org-srs-mouse-mode (org-srs-reviewing-p) (not (org-srs-item-confirm-pending-p)))
-    (let ((marker org-srs-review-item-marker))
-      (cl-assert marker)
+    (let ((item org-srs-review-item))
       (cl-loop with message-log-max = nil
                with width = (window-pixel-width (minibuffer-window))
                and height = (with-minibuffer-selected-window (line-pixel-height))
                with label-width = (/ width 4)
-               for (rating interval) on (with-current-buffer (marker-buffer marker)
-                                          (save-excursion
-                                            (goto-char marker)
-                                            (org-srs-stats-intervals)))
+               for (rating interval) on (org-srs-item-with-current item (org-srs-stats-intervals))
                by #'cddr
                concat (propertize
                        (org-srs-mouse-string-pad-pixel
@@ -113,7 +109,7 @@
                finally (message "%s" message)))))
 
 (defun org-srs-mouse-mode-update-panels-1 ()
-  (if (and org-srs-mouse-mode (eq major-mode 'org-mode) org-srs-review-item-marker)
+  (if (and org-srs-mouse-mode (eq major-mode 'org-mode) org-srs-review-item)
       (if-let ((confirm-command (org-srs-item-confirm-pending-p)))
           (org-srs-mouse-bottom-panel-show
            '(continue)

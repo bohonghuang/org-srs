@@ -41,7 +41,7 @@
   :group 'org-srs
   :prefix "org-srs-review-")
 
-(defvar org-srs-review-item-marker nil)
+(defvar org-srs-review-item nil)
 
 (cl-eval-when (:compile-toplevel :load-toplevel :execute)
   (defconst org-srs-review-ratings '(:easy :good :hard :again)))
@@ -61,14 +61,11 @@
 
 (defalias 'org-srs-review-add-hook-once 'org-srs-item-add-hook-once)
 
-(cl-defun org-srs-review-rate (rating &optional (position org-srs-review-item-marker))
+(cl-defun org-srs-review-rate (rating &optional (item org-srs-review-item))
   (cl-assert (not buffer-read-only) nil "Buffer %S must be editable" (current-buffer))
   (let ((org-srs-review-rating rating))
     (run-hooks 'org-srs-review-before-rate-hook))
-  (save-excursion
-    (let ((marker (copy-marker (or position (org-srs-item-marker)))))
-      (cl-assert (eq (current-buffer) (marker-buffer marker)))
-      (goto-char marker))
+  (org-srs-item-with-current item
     (org-srs-table-goto-starred-line)
     (cl-assert
      (time-less-p
@@ -291,16 +288,16 @@ to review."
   (if-let ((item-args (let ((org-srs-reviewing-p t)) (org-srs-review-next-due-item source))))
       (let ((item (cl-first item-args)) (org-srs-reviewing-p t))
         (apply #'org-srs-item-goto item-args)
-        (cl-assert (not (local-variable-p 'org-srs-review-item-marker)))
-        (cl-assert (null org-srs-review-item-marker))
-        (setq-local org-srs-review-item-marker (point-marker))
+        (cl-assert (not (local-variable-p 'org-srs-review-item)))
+        (cl-assert (null org-srs-review-item))
+        (setq-local org-srs-review-item item-args)
         (org-srs-review-add-hook-once
          'org-srs-review-after-rate-hook
          (lambda ()
-           (cl-assert (local-variable-p 'org-srs-review-item-marker))
-           (cl-assert (markerp org-srs-review-item-marker))
-           (kill-local-variable 'org-srs-review-item-marker)
-           (cl-assert (null org-srs-review-item-marker)))
+           (cl-assert (local-variable-p 'org-srs-review-item))
+           (cl-assert (consp org-srs-review-item))
+           (kill-local-variable 'org-srs-review-item)
+           (cl-assert (null org-srs-review-item)))
          99)
         (apply #'org-srs-item-review (car item) (cdr item))
         (org-srs-review-add-hook-once

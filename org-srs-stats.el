@@ -35,6 +35,7 @@
 (require 'org-srs-review-cache)
 (require 'org-srs-log)
 (require 'org-srs-table)
+(require 'org-srs-item)
 (require 'org-srs-time)
 
 (defgroup org-srs-stats nil
@@ -64,26 +65,29 @@
       (org-srs-property-let ((org-srs-review-cache-p nil))
         (defvar org-srs-time-now)
         (let ((org-srs-time-now (cl-constantly (org-srs-time-now)))
+              (org-srs-review-item-args (cl-multiple-value-list (org-srs-item-at-point)))
               (org-srs-table-with-temp-buffer-function #'funcall)
               (org-table-automatic-realign nil))
           (save-excursion
             (org-srs-table-goto-starred-line)
             (org-srs-table-with-temp-buffer-1
-              (make-local-variable 'org-srs-review-item-marker)
+              (make-local-variable 'org-srs-review-item)
               (save-excursion
                 (goto-char (point-min))
                 (open-line 1)
-                (insert "* HEADLINE"))
+                (insert "* HEADLINE")
+                (newline)
+                (insert "#+NAME: " (apply #'org-srs-item-link org-srs-review-item-args)))
               (org-srs-table-duplicate-line)
               (defvar cl--random-state)
               (let ((cl--random-state (org-srs-stats-deep-copy cl--random-state))
                     (buffer-undo-list nil))
                 (defvar org-srs-review-rating)
-                (defvar org-srs-review-item-marker)
+                (defvar org-srs-review-item)
                 (cl-flet ((rate (rating)
                             (save-excursion
                               (prog2 (let ((org-srs-review-rating rating)
-                                           (org-srs-review-item-marker (point-marker)))
+                                           (org-srs-review-item org-srs-review-item-args))
                                        (undo-boundary)
                                        (cl-assert (not (local-variable-p 'org-srs-review-before-rate-hook)))
                                        (cl-assert (not (local-variable-p 'org-srs-review-after-rate-hook)))
