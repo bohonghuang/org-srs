@@ -32,6 +32,7 @@
 (require 'org-srs-review)
 (require 'org-srs-log)
 (require 'org-srs-table)
+(require 'org-srs-item)
 (require 'org-srs-time)
 (require 'org-srs-schedule)
 
@@ -120,11 +121,11 @@
 (defun org-srs-schedule-step-update-due-timestamp ()
   (if (boundp 'org-srs-review-rating)
       (when (symbol-value 'org-srs-review-rating)
-        (goto-char org-srs-review-item-marker)
-        (org-srs-table-goto-starred-line)
-        (org-srs-property-let (org-srs-schedule-step-learning-steps org-srs-schedule-step-relearning-steps)
-          (org-srs-table-with-temp-buffer
-            (setf (org-srs-table-field 'timestamp) (org-srs-schedule-step-due-timestamp)))))
+        (org-srs-item-with-current org-srs-review-item
+          (org-srs-table-goto-starred-line)
+          (org-srs-property-let (org-srs-schedule-step-learning-steps org-srs-schedule-step-relearning-steps)
+            (org-srs-table-with-temp-buffer
+              (setf (org-srs-table-field 'timestamp) (org-srs-schedule-step-due-timestamp))))))
     (setf (org-srs-table-field 'timestamp) (org-srs-schedule-step-due-timestamp))))
 
 (add-hook 'org-srs-review-after-rate-hook #'org-srs-schedule-step-update-due-timestamp 50)
