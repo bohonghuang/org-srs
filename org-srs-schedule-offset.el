@@ -74,9 +74,9 @@
 
 (defun org-srs-schedule-offset-save-due-timestamp ()
   (when (bound-and-true-p org-srs-review-rating)
-    (goto-char org-srs-review-item-marker)
-    (org-srs-table-goto-starred-line)
-    (setf (org-srs-schedule-offset-due-timestamp) (org-srs-table-field 'timestamp))))
+    (org-srs-item-with-current org-srs-review-item
+      (org-srs-table-goto-starred-line)
+      (setf (org-srs-schedule-offset-due-timestamp) (org-srs-table-field 'timestamp)))))
 
 (add-hook 'org-srs-review-before-rate-hook #'org-srs-schedule-offset-save-due-timestamp)
 
@@ -84,11 +84,11 @@
   (if (boundp 'org-srs-review-rating)
       (when (symbol-value 'org-srs-review-rating)
         (let ((timestamp-due (or timestamp-due (cl-shiftf (org-srs-schedule-offset-due-timestamp) nil))))
-          (goto-char org-srs-review-item-marker)
-          (org-srs-table-goto-starred-line)
-          (org-srs-property-let (org-srs-schedule-offset-learn-ahead-time-p)
-            (org-srs-table-with-temp-buffer
-              (setf (org-srs-table-field 'timestamp) (org-srs-schedule-offset-learn-ahead-due-timestamp timestamp-due))))))
+          (org-srs-item-with-current org-srs-review-item
+            (org-srs-table-goto-starred-line)
+            (org-srs-property-let (org-srs-schedule-offset-learn-ahead-time-p)
+              (org-srs-table-with-temp-buffer
+                (setf (org-srs-table-field 'timestamp) (org-srs-schedule-offset-learn-ahead-due-timestamp timestamp-due)))))))
     (setf (org-srs-table-field 'timestamp) (org-srs-schedule-offset-learn-ahead-due-timestamp timestamp-due))))
 
 (add-hook 'org-srs-review-after-rate-hook #'org-srs-schedule-offset-update-due-timestamp 80)

@@ -92,11 +92,11 @@
 (defun org-srs-schedule-fuzz-update-due-timestamp ()
   (if (boundp 'org-srs-review-rating)
       (when (symbol-value 'org-srs-review-rating)
-        (goto-char org-srs-review-item-marker)
-        (org-srs-table-goto-starred-line)
-        (org-srs-property-let (org-srs-schedule-fuzz-ranges org-srs-schedule-fuzz-unit)
-          (org-srs-table-with-temp-buffer
-            (setf (org-srs-table-field 'timestamp) (org-srs-schedule-fuzz-due-timestamp)))))
+        (org-srs-item-with-current org-srs-review-item
+          (org-srs-table-goto-starred-line)
+          (org-srs-property-let (org-srs-schedule-fuzz-ranges org-srs-schedule-fuzz-unit)
+            (org-srs-table-with-temp-buffer
+              (setf (org-srs-table-field 'timestamp) (org-srs-schedule-fuzz-due-timestamp))))))
     (setf (org-srs-table-field 'timestamp) (org-srs-schedule-fuzz-due-timestamp))))
 
 (add-hook 'org-srs-review-after-rate-hook #'org-srs-schedule-fuzz-update-due-timestamp 60)
