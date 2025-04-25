@@ -61,19 +61,24 @@
 
 (defalias 'org-srs-review-add-hook-once 'org-srs-item-add-hook-once)
 
-(cl-defun org-srs-review-rate (rating &optional (item org-srs-review-item))
+(cl-defun org-srs-review-rate (rating &rest args &aux (item (or args org-srs-review-item)))
   (cl-assert (not buffer-read-only) nil "Buffer %S must be editable" (current-buffer))
-  (let ((org-srs-review-rating rating))
-    (run-hooks 'org-srs-review-before-rate-hook))
-  (org-srs-item-with-current item
-    (org-srs-table-goto-starred-line)
-    (cl-assert
-     (time-less-p
-      (org-srs-timestamp-time (org-srs-table-field 'timestamp))
-      (org-srs-time-tomorrow)))
-    (org-srs-item-repeat (cl-nth-value 0 (org-srs-item-at-point)) rating))
-  (let ((org-srs-review-rating rating))
-    (run-hooks 'org-srs-review-after-rate-hook)))
+  (if org-srs-review-item
+      (prog2 (let ((org-srs-review-rating rating))
+               (run-hooks 'org-srs-review-before-rate-hook))
+          (org-srs-item-with-current item
+            (org-srs-table-goto-starred-line)
+            (unless args
+              (cl-assert
+               (time-less-p
+                (org-srs-timestamp-time (org-srs-table-field 'timestamp))
+                (org-srs-time-tomorrow))))
+            (org-srs-item-repeat (cl-nth-value 0 (org-srs-item-at-point)) rating))
+        (let ((org-srs-review-rating rating))
+          (run-hooks 'org-srs-review-after-rate-hook)))
+    (cl-assert args)
+    (let ((org-srs-review-item args))
+      (apply #'org-srs-review-rate rating args))))
 
 (defmacro org-srs-review-define-rating-commands ()
   `(progn . ,(cl-loop for rating in org-srs-review-ratings
