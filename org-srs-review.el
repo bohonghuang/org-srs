@@ -181,12 +181,14 @@
   :group 'org-srs-review
   :type `(choice . ,org-srs-review-orders))
 
-(defun org-srs-review-item-file+position (&rest args)
-  (let* ((marker (apply #'org-srs-item-marker args))
-         (buffer (marker-buffer marker))
-         (name (or (buffer-file-name buffer) (buffer-name buffer)))
-         (position (marker-position marker)))
-    (format (eval-when-compile (format "%%s/%%0%dx" (length (format "%x" most-positive-fixnum)))) name position)))
+(defun org-srs-review-item-marker< (marker-a marker-b)
+  (let ((buffer-a (marker-buffer marker-a))
+        (buffer-b (marker-buffer marker-b)))
+    (if (eq buffer-a buffer-b)
+        (< marker-a marker-b)
+      (let ((name-a (or (buffer-file-name buffer-a) (buffer-name buffer-a)))
+            (name-b (or (buffer-file-name buffer-b) (buffer-name buffer-b))))
+        (string< name-a name-b)))))
 
 (cl-defun org-srs-review-next-due-item (&optional (source (current-buffer)))
   (cl-flet* ((cl-random-elt (sequence)
@@ -196,7 +198,7 @@
                  (cl-loop for function in functions thereis (apply function args))))
              (next-item (items order)
                (cl-case order
-                 (position (cl-first (cl-sort items #'string< :key (apply-partially #'apply #'org-srs-review-item-file+position))))
+                 (position (cl-first (cl-sort items #'org-srs-review-item-marker< :key (apply-partially #'apply #'org-srs-item-marker))))
                  (due-date (cl-first (cl-sort items #'org-srs-time< :key (apply-partially #'apply #'org-srs-item-due-time))))
                  (priority (cl-first (cl-sort items #'> :key (apply-partially #'apply #'org-srs-item-priority))))
                  (random (cl-random-elt items))
