@@ -78,8 +78,7 @@
                  if (org-srs-time> time due-time)
                  collect time-predicate-item
                  else
-                 do (cl-assert (cl-assoc predicate queries :test #'equal))
-                 (push item (alist-get predicate queries nil nil #'equal)))))
+                 do (setf (gethash item (alist-get predicate queries nil nil #'equal)) t))))
 
 (cl-defun org-srs-review-cache-update-pending (&optional (cache (org-srs-review-cache)))
   (let ((time (floor (time-to-seconds (org-srs-time-now)))))
@@ -94,14 +93,21 @@
         (cl-assert (org-srs-review-cache-source cache))
         (when source (cl-assert (equal (org-srs-review-cache-source cache) source)))
         (org-srs-review-cache-update-pending cache)
-        (alist-get predicate queries org-srs-review-cache-null t #'equal))
+        (if-let ((items (alist-get predicate queries nil t #'equal)))
+            (hash-table-keys items)
+          org-srs-review-cache-null))
     org-srs-review-cache-null))
 
 (defun \(setf\ org-srs-review-cache-query\) (value predicate &optional source)
   (let ((cache (or (org-srs-review-cache) (setf (org-srs-review-cache) (make-org-srs-review-cache :source source)))))
     (cl-assert (org-srs-review-cache-source cache))
     (when source (cl-assert (equal (org-srs-review-cache-source cache) source)))
-    (setf (alist-get predicate (org-srs-review-cache-queries cache) org-srs-review-cache-null t #'equal) value)))
+    (setf (alist-get predicate (org-srs-review-cache-queries cache) nil t #'equal)
+          (cl-loop with items = (make-hash-table :test #'equal)
+                   for item-cons on value
+                   do (setf (gethash (setf (car item-cons) (apply #'org-srs-review-cache-item (car item-cons))) items) t)
+                   finally (cl-return items)))
+    value))
 
 (org-srs-property-defcustom org-srs-review-cache-p nil
   "Non-nil means to enable caching mechanisms in a review session.
@@ -152,11 +158,6 @@ from a large set of review items."
         (goto-char marker))
     (apply fun args)))
 
-(defun org-srs-review-cache-item-equal (item-a item-b)
-  (cl-assert item-a) (cl-assert item-b)
-  ;; (cl-every #'equal item-a item-b)
-  (cl-loop for elem-a in item-a for elem-b in item-b always (equal elem-a elem-b)))
-
 (define-advice org-srs-query (:around (fun &rest args) org-srs-review-cache)
   (cl-destructuring-bind (predicate &optional (source (or (buffer-file-name) default-directory))) args
     (if (org-srs-review-cache-active-p)
@@ -179,7 +180,7 @@ from a large set of review items."
                                                  (setf (org-srs-review-cache-pending cache)
                                                        (cons (cons due-time (cons predicate item))
                                                              (cl-delete (cons predicate item) (org-srs-review-cache-pending cache)
-                                                                        :key #'cdr :test #'org-srs-review-cache-item-equal)))
+                                                                        :key #'cdr :test #'equal)))
                                                  (cache-marker item))))
                                            nil))
                                 `(and ,@rest-predicates (or (and ,first-predicate ,#'cache-marker) ,#'cache-due-time))))))
@@ -205,7 +206,7 @@ from a large set of review items."
                  (item (cl-multiple-value-call #'org-srs-review-cache-item (org-srs-item-at-point)))
                  (due-time (setf (gethash item (org-srs-review-cache-due-times cache)) (org-srs-item-due-time))))
             (setf (org-srs-review-cache-pending cache)
-                  (cl-delete item (org-srs-review-cache-pending cache) :key #'cddr :test #'org-srs-review-cache-item-equal)
+                  (cl-delete item (org-srs-review-cache-pending cache) :key #'cddr :test #'equal)
                   (org-srs-review-cache-queries cache)
                   (cl-loop with tomorrow-time = (org-srs-time-tomorrow)
                            for (predicate . items) in (org-srs-review-cache-queries cache)
@@ -215,8 +216,9 @@ from a large set of review items."
                                 (when (funcall (org-srs-query-predicate `(and . ,rest-predicates)))
                                   (cons (funcall (org-srs-query-predicate first-predicate)) t)))
                                (_ (cons (funcall (org-srs-query-predicate predicate)) nil)))
-                           collect (cons predicate (funcall (if all-satisfied-p #'cl-adjoin #'cl-delete)
-                                                            item items :test #'org-srs-review-cache-item-equal))
+                           if all-satisfied-p do (setf (gethash item items) t)
+                           else do (remhash item items)
+                           collect (cons predicate items)
                            when (org-srs-time> tomorrow-time due-time)
                            when (and rest-satisfied-p (not all-satisfied-p))
                            do (push (cons due-time (cons predicate item)) (org-srs-review-cache-pending cache))))))
@@ -224,27 +226,19 @@ from a large set of review items."
 
 (add-hook 'org-srs-review-after-rate-hook #'org-srs-review-cache-after-rate 95)
 
-(defun org-srs-review-cache-sub-predicate-p (pred1 pred2)
-  (pcase pred2
-    ((guard (equal pred1 pred2)) 'equal)
-    (`(and . ,preds) (cl-loop for pred2 in preds thereis (org-srs-review-cache-sub-predicate-p pred1 pred2)))))
-
 (define-advice org-srs-query-predicate (:around (fun &rest args) org-srs-review-cache)
   (if (and (org-srs-review-cache-active-p) (not (bound-and-true-p org-srs-query-predicate@org-srs-review-cache)))
       (cl-destructuring-bind (desc) args
         (cl-etypecase desc
           ((or list symbol)
-           (lambda (&rest args)
-             (cl-loop with cache = (org-srs-review-cache)
-                      with target-item = (or args (cl-multiple-value-list (org-srs-item-at-point)))
-                      initially (cl-assert (org-srs-review-cache-active-p))
-                      for (predicate . items) in (org-srs-review-cache-queries cache)
-                      for sub-predicate-p = (org-srs-review-cache-sub-predicate-p desc predicate)
-                      when sub-predicate-p
-                      if (cl-loop for item in items thereis (org-srs-review-cache-item-equal item target-item)) return t
-                      else if (eq sub-predicate-p 'equal) return nil
-                      finally (cl-return (cl-member target-item (org-srs-query desc (org-srs-review-cache-source cache))
-                                                    :test #'org-srs-review-cache-item-equal)))))
+           (cl-labels ((predicate (&rest args &aux (cache (org-srs-review-cache)))
+                         (if-let ((items (cdr (cl-assoc desc (org-srs-review-cache-queries cache) :test #'equal)))
+                                  (item (or args (cl-multiple-value-call #'org-srs-review-cache-item (org-srs-item-at-point)))))
+                             (gethash item items)
+                           (cl-assert (org-srs-review-cache-active-p))
+                           (org-srs-query desc (org-srs-review-cache-source cache))
+                           (apply #'predicate args))))
+             #'predicate))
           (function desc)))
     (apply fun args)))
 
