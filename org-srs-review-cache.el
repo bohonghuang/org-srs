@@ -132,8 +132,8 @@ from a large set of review items."
            ,value)))))
 
 (defun org-srs-review-cache-item (&rest args)
-  (cl-destructuring-bind (item &optional (id (org-id-get)) (buffer (current-buffer))) args
-    (list item id buffer)))
+  (cl-destructuring-bind (item &optional (id (org-id-get)) (buffer (current-buffer) bufferp)) args
+    (if bufferp args (list item id buffer))))
 
 (define-advice org-srs-item-due-time (:around (fun &rest args) org-srs-review-cache)
   (if (and (org-srs-review-cache-active-p) args)
