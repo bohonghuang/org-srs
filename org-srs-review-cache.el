@@ -243,8 +243,8 @@ from a large set of review items."
                       when sub-predicate-p
                       if (cl-loop for item in items thereis (org-srs-review-cache-item-equal item target-item)) return t
                       else if (eq sub-predicate-p 'equal) return nil
-                      finally (cl-return (cl-find target-item (org-srs-query desc (org-srs-review-cache-source cache))
-                                                  :test #'org-srs-review-cache-item-equal)))))
+                      finally (cl-return (cl-member target-item (org-srs-query desc (org-srs-review-cache-source cache))
+                                                    :test #'org-srs-review-cache-item-equal)))))
           (function desc)))
     (apply fun args)))
 
