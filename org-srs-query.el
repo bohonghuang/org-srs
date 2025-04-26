@@ -116,13 +116,48 @@
 (defun org-srs-query-predicate-suspended ()
   #'org-in-commented-heading-p)
 
+(defmacro org-srs-query-cl-loop (&rest args)
+  (declare (indent 0))
+  (let ((cl-loop (list 'cl-loop))
+        (end nil))
+    (cl-symbol-macrolet ((start (cdr cl-loop)))
+      (append
+       cl-loop
+       (cl-loop for (collect val into var) = args
+                while args
+                if (eq collect 'collect)
+                if (eq into 'into)
+                append (let ((clause `(with ,var = nil)))
+                         (unless (cl-search clause start)
+                           (setf start (append start `(with ,var = nil))))
+                         `(do (push ,val ,var)))
+                and do (setf args (cddddr args))
+                else
+                append (cl-with-gensyms (var)
+                         (let ((clause `(with ,var = nil)))
+                           (unless (cl-search clause start)
+                             (setf start (append start `(with ,var = nil)))))
+                         (cl-assert (null end))
+                         (setf end `(finally (cl-return ,var)))
+                         `(do (push ,val ,var)))
+                and do (setf args (cddr args))
+                else
+                collect collect
+                and do (setf args (cdr args)))
+       end))))
+
+(defmacro org-srs-query-with-loop (&rest body)
+  (declare (indent 0))
+  `(progn . ,(cl-subst 'org-srs-query-cl-loop 'cl-loop body)))
+
 (cl-defun org-srs-query-region (predicate &optional (start (point-min)) (end (point-max)))
   (save-excursion
-    (cl-loop initially (goto-char start)
-             while (re-search-forward org-srs-item-header-regexp end t)
-             do (goto-char (match-beginning 0))
-             when (prog1 (save-match-data (funcall predicate)) (goto-char (match-end 0)))
-             collect (cl-multiple-value-list (org-srs-item-from-match-data)))))
+    (org-srs-query-with-loop
+      (cl-loop initially (goto-char start)
+               while (re-search-forward org-srs-item-header-regexp end t)
+               do (goto-char (match-beginning 0))
+               when (prog1 (save-match-data (funcall predicate)) (goto-char (match-end 0)))
+               collect (cl-multiple-value-list (org-srs-item-from-match-data))))))
 
 (cl-defun org-srs-query-buffer (predicate &optional (buffer (current-buffer)))
   (with-current-buffer buffer
