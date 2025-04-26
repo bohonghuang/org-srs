@@ -203,38 +203,39 @@
                  (t (cl-etypecase order (function (funcall order items)))))))
     (let ((order (org-srs-review-order-new-review)))
       (cl-multiple-value-bind (new-items review-items)
-          (cl-loop with predicate-new = (org-srs-query-predicate 'new)
-                   and predicate-learned = (org-srs-query-predicate 'learned)
-                   and predicate-due = (org-srs-query-predicate '(and due))
-                   and predicate-ahead = (org-srs-query-predicate `(and (due ,(org-srs-review-learn-ahead-time))))
-                   with items = (org-srs-review-due-items source (org-srs-time-tomorrow) (org-srs-time-tomorrow))
-                   for item in items
-                   if (apply #'org-srs-query-item-p predicate-new item)
-                   if (apply #'org-srs-query-item-p predicate-due item) collect item into new-due-items
-                   else if (apply #'org-srs-query-item-p predicate-ahead item) collect item into new-ahead-items end
-                   else if (apply #'org-srs-query-item-p predicate-learned item)
-                   if (apply #'org-srs-query-item-p predicate-due item) collect item into learned-due-items
-                   else if (apply #'org-srs-query-item-p predicate-ahead item) collect item into learned-ahead-items end
-                   else
-                   if (apply #'org-srs-query-item-p predicate-due item) collect item into review-due-items
-                   else if (apply #'org-srs-query-item-p predicate-ahead item) collect item into review-ahead-items end
-                   finally
-                   (cl-assert (null new-ahead-items))
-                   (cl-return
-                    (cl-case order
-                      (new-ahead
-                       (cl-values
-                        (and (not learned-due-items) (or new-due-items new-ahead-items))
-                        (or (or learned-due-items learned-ahead-items) (or review-due-items review-ahead-items))))
-                      (review-ahead
-                       (cl-values
-                        (and (not review-due-items) (or new-due-items new-ahead-items))
-                        (or (or review-due-items review-ahead-items) (or learned-due-items learned-ahead-items))))
-                      (t (let ((review-due-items (nconc learned-due-items review-due-items))
-                               (review-ahead-items (nconc learned-ahead-items review-ahead-items)))
-                           (cl-values
-                            (or new-due-items (and (not review-due-items) new-ahead-items))
-                            (or review-due-items (and (not new-due-items) review-ahead-items))))))))
+          (org-srs-query-with-loop
+            (cl-loop with predicate-new = (org-srs-query-predicate 'new)
+                     and predicate-learned = (org-srs-query-predicate 'learned)
+                     and predicate-due = (org-srs-query-predicate '(and due))
+                     and predicate-ahead = (org-srs-query-predicate `(and (due ,(org-srs-review-learn-ahead-time))))
+                     with items = (org-srs-review-due-items source (org-srs-time-tomorrow) (org-srs-time-tomorrow))
+                     for item in items
+                     if (apply #'org-srs-query-item-p predicate-new item)
+                     if (apply #'org-srs-query-item-p predicate-due item) collect item into new-due-items
+                     else if (apply #'org-srs-query-item-p predicate-ahead item) collect item into new-ahead-items end
+                     else if (apply #'org-srs-query-item-p predicate-learned item)
+                     if (apply #'org-srs-query-item-p predicate-due item) collect item into learned-due-items
+                     else if (apply #'org-srs-query-item-p predicate-ahead item) collect item into learned-ahead-items end
+                     else
+                     if (apply #'org-srs-query-item-p predicate-due item) collect item into review-due-items
+                     else if (apply #'org-srs-query-item-p predicate-ahead item) collect item into review-ahead-items end
+                     finally
+                     (cl-assert (null new-ahead-items))
+                     (cl-return
+                      (cl-case order
+                        (new-ahead
+                         (cl-values
+                          (and (not learned-due-items) (or new-due-items new-ahead-items))
+                          (or (or learned-due-items learned-ahead-items) (or review-due-items review-ahead-items))))
+                        (review-ahead
+                         (cl-values
+                          (and (not review-due-items) (or new-due-items new-ahead-items))
+                          (or (or review-due-items review-ahead-items) (or learned-due-items learned-ahead-items))))
+                        (t (let ((review-due-items (nconc learned-due-items review-due-items))
+                                 (review-ahead-items (nconc learned-ahead-items review-ahead-items)))
+                             (cl-values
+                              (or new-due-items (and (not review-due-items) new-ahead-items))
+                              (or review-due-items (and (not new-due-items) review-ahead-items)))))))))
         (let* ((new-item (next-item new-items (org-srs-review-order-new)))
                (review-item (next-item review-items (org-srs-review-order-review)))
                (items (cl-delete nil (list new-item review-item)))
