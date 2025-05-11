@@ -192,12 +192,13 @@
   `(org-srs-table-call-with-temp-buffer-1 (lambda () . ,body)))
 
 (defun org-srs-table-call-with-temp-buffer (thunk)
-  (let* ((begin (org-srs-table-begin)) (end (org-srs-table-end)) (point (- (point) begin))
+  (let* ((begin (org-srs-table-begin)) (end (1- (org-srs-table-end))) (point (- (point) begin))
          (table (buffer-substring-no-properties begin end)))
     (cl-assert (>= (point) begin))
     (cl-multiple-value-bind (table point) (org-srs-table-call-with-temp-buffer-1 thunk table point)
       (delete-region begin end)
       (insert table)
+      (cl-loop while (= (line-beginning-position) (point) (line-end-position)) do (delete-char 1))
       (goto-char (+ begin point)))))
 
 (defvar org-srs-table-with-temp-buffer-function #'org-srs-table-call-with-temp-buffer)
