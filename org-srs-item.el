@@ -130,6 +130,15 @@
     (save-excursion
       (org-srs-item-due-timestamp-1))))
 
+(defun \(setf\ org-srs-item-due-timestamp\) (value &rest args)
+  (if args
+      (org-srs-item-with-current args
+        (org-srs-item-due-timestamp-1)
+        (replace-match value t t nil 2))
+    (save-excursion
+      (org-srs-item-due-timestamp-1)
+      (replace-match value t t nil 2))))
+
 (defun org-srs-item-due-time (&rest args)
   (org-srs-timestamp-time (apply #'org-srs-item-due-timestamp args)))
 

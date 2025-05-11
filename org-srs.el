@@ -49,6 +49,7 @@
 (require 'org-srs-schedule-offset)
 (require 'org-srs-schedule-step)
 (require 'org-srs-schedule-fuzz)
+(require 'org-srs-schedule-bury)
 
 (require 'org-srs-algorithm)
 (require 'org-srs-algorithm-fsrs)

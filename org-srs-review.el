@@ -278,6 +278,9 @@
 
 (defvar org-srs-review-finish-hook nil)
 
+(defun org-srs-review-continue-p ()
+  (and (boundp 'org-srs-review-rating) (or (not (boundp 'org-srs-reviewing-p)) (symbol-value 'org-srs-reviewing-p))))
+
 ;;;###autoload
 (cl-defun org-srs-review-start (&optional (source (cdr (cl-first (org-srs-review-sources)))))
   "Start a review session for items in SOURCE.
@@ -310,7 +313,7 @@ to review."
         (apply #'org-srs-item-review (car item) (cdr item))
         (org-srs-review-add-hook-once
          'org-srs-review-after-rate-hook
-         (lambda () (when org-srs-review-rating (org-srs-review-start source)))
+         (lambda () (when (org-srs-review-continue-p) (org-srs-review-start source)))
          100))
     (run-hook-with-args 'org-srs-review-finish-hook source)))
 
