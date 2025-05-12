@@ -61,10 +61,10 @@
          (put ',name 'safe-local-variable #'always)
          (cl-defun ,name (&optional ,value ,thunk)
            (if ,thunk
-               (cl-locally
-                (defvar ,anonymous-variable)
-                (let ((,anonymous-variable ,value))
-                  (funcall ,thunk)))
+               (progn
+                 (defvar ,anonymous-variable)
+                 (let ((,anonymous-variable ,value))
+                   (funcall ,thunk)))
              (when (boundp ',anonymous-variable)
                (cl-return-from ,name (symbol-value ',anonymous-variable)))
              (when (eq major-mode 'org-mode)
