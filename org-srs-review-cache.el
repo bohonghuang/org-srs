@@ -252,9 +252,9 @@ from a large set of review items."
 
 (defmacro org-srs-review-cache-without-query-predicate (&rest body)
   (declare (indent 0))
-  `(cl-locally
-    (defvar org-srs-query-predicate@org-srs-review-cache)
-    (let ((org-srs-query-predicate@org-srs-review-cache t)) . ,body)))
+  `(progn
+     (defvar org-srs-query-predicate@org-srs-review-cache)
+     (let ((org-srs-query-predicate@org-srs-review-cache t)) . ,body)))
 
 (define-advice org-srs-review-cache-after-rate (:around (fun &rest args) org-srs-query-predicate@org-srs-review-cache)
   (org-srs-review-cache-without-query-predicate (apply fun args)))
