@@ -48,19 +48,20 @@
   (unless (org-at-table-hline-p)
     (setf args (nconc (org-srs-table-current-line) args)))
   (org-srs-table-goto-starred-line)
-  (org-srs-table-with-temp-buffer
-    (unless (setf (org-srs-table-field 'timestamp) (org-srs-timestamp-now)
-                  (org-srs-table-field 'rating) (prin1-to-string rating t)
-                  args (nconc (org-srs-table-current-line) args)
-                  args (org-srs-algorithm-repeat algorithm (cl-acons 'rating rating args)))
-      (cl-return-from org-srs-log-repeat))
-    (cl-loop for (name . nil) in (org-srs-table-column-name-number-alist)
-             for field = (alist-get name args)
-             unless (eq name 'timestamp)
-             do (setf (org-srs-table-field name) (prin1-to-string field t))
-             finally
-             (org-srs-table-forward-star)
-             (setf (org-srs-table-field 'timestamp) (alist-get 'timestamp args)))))
+  (org-srs-property-let t
+    (org-srs-table-with-temp-buffer
+      (unless (setf (org-srs-table-field 'timestamp) (org-srs-timestamp-now)
+                    (org-srs-table-field 'rating) (prin1-to-string rating t)
+                    args (nconc (org-srs-table-current-line) args)
+                    args (org-srs-algorithm-repeat algorithm args))
+        (cl-return-from org-srs-log-repeat))
+      (cl-loop for (name . nil) in (org-srs-table-column-name-number-alist)
+               for field = (alist-get name args)
+               unless (eq name 'timestamp)
+               do (setf (org-srs-table-field name) (prin1-to-string field t))
+               finally
+               (org-srs-table-forward-star)
+               (setf (org-srs-table-field 'timestamp) (alist-get 'timestamp args))))))
 
 (defconst org-srs-log-latest-timestamp-regexp (rx (regexp org-srs-table-starred-line-regexp) (* blank) (group (regexp org-srs-timestamp-regexp))))
 
