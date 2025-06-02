@@ -103,11 +103,13 @@
       (re-search-forward org-srs-table-starred-line-regexp (org-srs-table-end))
     (goto-char (match-beginning 1))))
 
+(defun org-srs-table-string-trim (string)
+  (string-match (rx bos (* (char " \t\n\r")) (group (*? anychar)) (* (char " \t\n\r")) eos) string)
+  (match-string-no-properties 1 string))
+
 (cl-defun org-srs-table-current-line (&optional (columns (org-srs-table-column-name-number-alist)))
-  (org-table-analyze)
-  (cl-loop with line = (org-table-current-line)
-           for (name . number) in columns
-           for field in (org-table-get-range (format "@%d$%d..@%d$%d" line (1+ 1) line (1+ (length columns))))
+  (cl-loop for (name . number) in columns
+           for field = (org-srs-table-string-trim (org-table-get-field number))
            unless (string-empty-p field)
            collect (cons name (org-srs-table-ensure-read-field field))))
 
