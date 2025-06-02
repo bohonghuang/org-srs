@@ -54,26 +54,30 @@
   (let* ((property (string-remove-prefix (symbol-name 'org-) (symbol-name name)))
          (property-name (string-replace "-" "_" (upcase property)))
          (property (string-remove-prefix (symbol-name 'srs-) property))
-         (propname (intern (concat ":" property))))
-    (cl-with-gensyms (value anonymous-variable thunk)
+         (propname (intern (concat ":" property)))
+         (transform (prog1 (cl-getf defcustom-args :transform '#'identity) (cl-remf defcustom-args :transform))))
+    (cl-with-gensyms (value anonymous-variable thunk block)
       `(progn
          (defcustom ,name . ,defcustom-args)
          (put ',name 'safe-local-variable #'always)
-         (cl-defun ,name (&optional ,value ,thunk)
+         (cl-defun ,name (&optional (,value ,transform) ,thunk)
            (if ,thunk
                (progn
                  (defvar ,anonymous-variable)
                  (let ((,anonymous-variable ,value))
                    (funcall ,thunk)))
-             (when (boundp ',anonymous-variable)
-               (cl-return-from ,name (symbol-value ',anonymous-variable)))
-             (when (eq major-mode 'org-mode)
-               (let* ((,value (cl-getf (org-srs-property-plist-at-point) ,propname ',anonymous-variable)))
-                 (unless (eq ,value ',anonymous-variable)
-                   (cl-return-from ,name ,value)))
-               (when-let ((,value (org-entry-get nil ,property-name t t)))
-                 (cl-return-from ,name (read ,value))))
-             ,name))))))
+             (funcall
+              ,value
+              (cl-block ,block
+                (when (boundp ',anonymous-variable)
+                  (cl-return-from ,block (symbol-value ',anonymous-variable)))
+                (when (eq major-mode 'org-mode)
+                  (let* ((,value (cl-getf (org-srs-property-plist-at-point) ,propname ',anonymous-variable)))
+                    (unless (eq ,value ',anonymous-variable)
+                      (cl-return-from ,block ,value)))
+                  (when-let ((,value (org-entry-get nil ,property-name t t)))
+                    (cl-return-from ,block (read ,value))))
+                ,name))))))))
 
 (cl-defun org-srs-property-group-members (&optional (group 'org-srs))
   (cl-loop for (member type) in (custom-group-members group nil)
@@ -87,12 +91,12 @@
 (cl-defun org-srs-property-call-with-saved-properties (thunk &optional (properties (org-srs-property-group-members)))
   (cl-destructuring-bind (property . properties) properties
     (funcall
-     property (funcall property)
+     property (funcall property #'identity)
      (if properties (apply-partially #'org-srs-property-call-with-saved-properties thunk properties) thunk))))
 
 (cl-define-compiler-macro org-srs-property-call-with-saved-properties (&whole form thunk &optional properties)
   (pcase properties
-    (`'(,property) `(org-srs-property-let ((,property (,property))) (funcall ,thunk)))
+    (`'(,property) `(org-srs-property-let ((,property (,property #'identity))) (funcall ,thunk)))
     (`'() `(funcall ,thunk))
     (_ form)))
 
