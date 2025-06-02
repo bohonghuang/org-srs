@@ -118,7 +118,11 @@ from a large set of review items."
   :type 'boolean)
 
 (define-advice org-srs-review-cache-p (:around (fun &rest args) org-srs-review-cache)
-  (if (and args (null (cdr args))) (apply #'org-srs-review-cache--p args) (apply fun args)))
+  (if (and args (null (cdr args)))
+      (cl-typecase (car args)
+        (function (apply fun args))
+        (t (apply #'org-srs-review-cache--p args)))
+    (apply fun args)))
 
 (defun org-srs-review-cache-active-p ()
   (and (org-srs-reviewing-p) (org-srs-review-cache-p)))
