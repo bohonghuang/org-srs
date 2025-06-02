@@ -48,18 +48,18 @@ without leaving your Org workflow.
   efficiently and effectively. You can also optimize the parameters
   based on the content and your review habits.
 * Installation
-Org-srs is currently not available on Melpa. Below is an example of
-installation using Quelpa for reference. You can also choose to use
-~straight.el~ or the ~:vc~ keyword in ~use-package~ (Emacs 30 and above)
+Org-srs is currently not available on MELPA. Below is an example of
+installation using the ~:vc~ keyword in ~use-package~ (on Emacs 30 and
+above) for reference. You can also choose to use ~straight.el~ or Quelpa
 according to your preference:
 
 #+BEGIN_SRC emacs-lisp
   (use-package fsrs
-    :quelpa (fsrs :fetcher github :repo "bohonghuang/lisp-fsrs")
+    :ensure t
     :defer t)
 
   (use-package org-srs
-    :quelpa (org-srs :fetcher github :repo "bohonghuang/org-srs")
+    :vc (:url "https://github.com/bohonghuang/org-srs.git" :rev "HEAD")
     :defer t
     :hook (org-mode . org-srs-embed-overlay-mode)
     :bind (:map org-mode-map
