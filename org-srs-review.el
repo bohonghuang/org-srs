@@ -281,6 +281,14 @@
 (defun org-srs-review-continue-p ()
   (and (boundp 'org-srs-review-rating) (or (not (boundp 'org-srs-reviewing-p)) (symbol-value 'org-srs-reviewing-p))))
 
+(defun org-srs-review-source-dwim ()
+  (cl-destructuring-bind (&optional (arg 1) &aux (sources (org-srs-review-sources)))
+      current-prefix-arg
+    (cl-assert (not (org-srs-reviewing-p)))
+    (if (> arg 1)
+        (alist-get (read (completing-read "Review scope: " (mapcar #'car sources) nil t)) sources)
+      (cdr (cl-first sources)))))
+
 ;;;###autoload
 (cl-defun org-srs-review-start (&optional (source (cdr (cl-first (org-srs-review-sources)))))
   "Start a review session for items in SOURCE.
@@ -288,13 +296,7 @@
 If called interactively with a `\\[universal-argument]` prefix or
 ARG greater than 1, prompt the user to select the scope of items
 to review."
-  (interactive (list
-                (cl-destructuring-bind (&optional (arg 1) &aux (sources (org-srs-review-sources)))
-                    current-prefix-arg
-                  (cl-assert (not (org-srs-reviewing-p)))
-                  (if (> arg 1)
-                      (alist-get (read (completing-read "Review scope: " (mapcar #'car sources) nil t)) sources)
-                    (cdr (cl-first sources))))))
+  (interactive (list (org-srs-review-source-dwim)))
   (require 'org-srs)
   (if-let ((item-args (let ((org-srs-reviewing-p t)) (org-srs-review-next-due-item source))))
       (let ((item (cl-first item-args)) (org-srs-reviewing-p t))
