@@ -62,10 +62,9 @@
 (cl-defun org-srs-stats-call-with-rating-simulator (thunk)
   (org-srs-property-let org-srs-algorithm
     (org-srs-property-let org-srs-schedule
-      (org-srs-property-let ((org-srs-review-cache-p nil))
-        (defvar org-srs-time-now)
-        (let ((org-srs-time-now (cl-constantly (org-srs-time-now)))
-              (org-srs-review-item-args (cl-multiple-value-list (org-srs-item-at-point)))
+      (org-srs-property-let ((org-srs-review-cache-p nil)
+                             (org-srs-time-now (cl-constantly (org-srs-time-now))))
+        (let ((org-srs-review-item-args (cl-multiple-value-list (org-srs-item-at-point)))
               (org-srs-table-with-temp-buffer-function #'funcall)
               (org-table-automatic-realign nil))
           (save-excursion
