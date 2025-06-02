@@ -73,8 +73,11 @@
   :group 'org-srs-time
   :type 'sexp)
 
-(defvar org-srs-time-now #'current-time)
-(defsubst org-srs-time-now () (funcall org-srs-time-now))
+(org-srs-property-defcustom org-srs-time-now #'current-time
+  "Function to get the current time."
+  :group 'org-srs-time
+  :type 'function
+  :transform #'funcall)
 
 (defun org-srs-time-today ()
   (cl-multiple-value-bind (time hms) (org-srs-time-truncate-hms (org-srs-time-now))
@@ -83,8 +86,14 @@
           (apply #'org-srs-time+ time -1 :day start-of-day)
         (apply #'org-srs-time+ time start-of-day)))))
 
-(defun org-srs-time-tomorrow ()
+(defun org-srs-time-today+1 ()
   (org-srs-time+ (org-srs-time-today) 1 :day))
+
+(org-srs-property-defcustom org-srs-time-tomorrow #'org-srs-time-today+1
+  "Function to get the tomorrow time."
+  :group 'org-srs-time
+  :type 'function
+  :transform #'funcall)
 
 (cl-defun org-srs-time-today-p (time)
   (let ((seconds (time-to-seconds time)))
