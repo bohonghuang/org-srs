@@ -47,17 +47,18 @@
               (cl-loop with columns = (org-srs-table-column-name-number-alist)
                        with marker = (point-marker)
                        initially (forward-line -1)
+                       for previous-line = (cons nil nil) then line
                        for line = (cl-acons 'marker marker (org-srs-table-current-line columns))
                        for timestamp = (alist-get 'timestamp line)
                        for date = (org-srs-timestamp-date timestamp)
                        while (alist-get 'rating line)
-                       do (push line (gethash date table))
+                       do (push (setf (cdr (last previous-line)) line) (gethash date table))
                        until (cl-minusp (forward-line -1))
                        until (org-at-table-hline-p))))
      source)
     table))
 
-(cl-defun org-srs-stats-review-history (source &optional (length (truncate (window-width) (/ 10.0 3.0))))
+(cl-defun org-srs-stats-review-history (source &optional (length (truncate (- (window-width) (* 5 2)) 3)))
   (cl-loop with table = (org-srs-stats-review-history-full source)
            with labels and values
            for timestamp = (org-srs-timestamp-now) then (org-srs-timestamp+ timestamp -1 :day)
@@ -83,6 +84,31 @@
                        (cl-loop for reviews in values
                                 collect (length (cl-delete-duplicates reviews :key (apply-partially #'alist-get 'marker))))
                        "Items")))
+
+;;;###autoload
+(defun org-srs-stats-review-retentions (source)
+  "Display a chart of the review retention per date for the given SOURCE."
+  (interactive (list (org-srs-review-source-dwim)))
+  (cl-multiple-value-bind (labels values) (org-srs-stats-review-history source)
+    (chart-bar-quickie 'vertical "Org-srs Statistics: Review Retentions" labels "Date"
+                       (cl-loop for reviews in values
+                                collect (cl-loop with table = (make-hash-table :test #'eq)
+                                                 for review in reviews
+                                                 for marker = (alist-get 'marker review)
+                                                 for rating = (alist-get 'rating review)
+                                                 when (cl-loop for (key . value) in review
+                                                               count (eq key 'state) into count
+                                                               when (= count 2)
+                                                               return (eq value :review))
+                                                 do (setf (gethash marker table t) (and (gethash marker table t) (not (eq rating :again))))
+                                                 finally (cl-return
+                                                          (condition-case nil
+                                                              (cl-loop for successp being the hash-value in table
+                                                                       count successp into success-count
+                                                                       count (not successp) into failure-count
+                                                                       finally (cl-return (/ (* success-count 100) (+ success-count failure-count))))
+                                                            (arith-error 0)))))
+                       "Retention")))
 
 (provide 'org-srs-stats-review)
 ;;; org-srs-stats-review.el ends here
