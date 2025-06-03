@@ -1,4 +1,4 @@
-;;; org-srs-stats-review.el --- Review statistics and visualization -*- lexical-binding:t -*-
+;;; org-srs-stats-history.el --- Review history statistics and visualization -*- lexical-binding:t -*-
 
 ;; Copyright (C) 2024-2025 Bohong Huang
 
@@ -33,12 +33,12 @@
 (require 'org-srs-review)
 (require 'org-srs-query)
 
-(defgroup org-srs-stats-review nil
-  "Review statistics and visualization."
+(defgroup org-srs-stats-history nil
+  "Review history statistics and visualization."
   :group 'org-srs-stats
-  :prefix "org-srs-stats-review-")
+  :prefix "org-srs-stats-history-")
 
-(defun org-srs-stats-review-history-full (source)
+(defun org-srs-stats-history-full (source)
   (let ((table (make-hash-table :test #'equal)))
     (org-srs-query
      `(and (not (or suspended new))
@@ -58,8 +58,8 @@
      source)
     table))
 
-(cl-defun org-srs-stats-review-history (source &optional (length (truncate (- (window-width) (* 5 2)) 3)))
-  (cl-loop with table = (org-srs-stats-review-history-full source)
+(cl-defun org-srs-stats-history (source &optional (length (truncate (- (window-width) (* 5 2)) 3)))
+  (cl-loop with table = (org-srs-stats-history-full source)
            with labels and values
            for timestamp = (org-srs-timestamp-now) then (org-srs-timestamp+ timestamp -1 :day)
            for date = (org-srs-timestamp-date timestamp)
@@ -69,28 +69,28 @@
            finally (cl-return (cl-values labels values))))
 
 ;;;###autoload
-(defun org-srs-stats-reviews (source)
+(defun org-srs-stats-history-reviews (source)
   "Display a chart of the number of reviews per date for the given SOURCE."
   (interactive (list (org-srs-review-source-dwim)))
-  (cl-multiple-value-bind (labels values) (org-srs-stats-review-history source)
+  (cl-multiple-value-bind (labels values) (org-srs-stats-history source)
     (chart-bar-quickie 'vertical "Org-srs Statistics: Reviews" labels "Date" (mapcar #'length values) "Reviews")))
 
 ;;;###autoload
-(defun org-srs-stats-review-items (source)
+(defun org-srs-stats-history-review-items (source)
   "Display a chart of the count of review items per date for the given SOURCE."
   (interactive (list (org-srs-review-source-dwim)))
-  (cl-multiple-value-bind (labels values) (org-srs-stats-review-history source)
+  (cl-multiple-value-bind (labels values) (org-srs-stats-history source)
     (chart-bar-quickie 'vertical "Org-srs Statistics: Review Items" labels "Date"
                        (cl-loop for reviews in values
                                 collect (length (cl-delete-duplicates reviews :key (apply-partially #'alist-get 'marker))))
                        "Items")))
 
 ;;;###autoload
-(defun org-srs-stats-review-retentions (source)
-  "Display a chart of the review retention per date for the given SOURCE."
+(defun org-srs-stats-history-retentions (source)
+  "Display a chart of the retention rate per date for the given SOURCE."
   (interactive (list (org-srs-review-source-dwim)))
-  (cl-multiple-value-bind (labels values) (org-srs-stats-review-history source)
-    (chart-bar-quickie 'vertical "Org-srs Statistics: Review Retentions" labels "Date"
+  (cl-multiple-value-bind (labels values) (org-srs-stats-history source)
+    (chart-bar-quickie 'vertical "Org-srs Statistics: Retentions" labels "Date"
                        (cl-loop for reviews in values
                                 collect (cl-loop with table = (make-hash-table :test #'eq)
                                                  for review in reviews
@@ -110,5 +110,5 @@
                                                             (arith-error 0)))))
                        "Retention")))
 
-(provide 'org-srs-stats-review)
-;;; org-srs-stats-review.el ends here
+(provide 'org-srs-stats-history)
+;;; org-srs-stats-history.el ends here
