@@ -57,7 +57,7 @@
 
 (require 'org-srs-stats)
 (require 'org-srs-stats-interval)
-(require 'org-srs-stats-review)
+(require 'org-srs-stats-history)
 
 (require 'org-srs-child-frame)
 (require 'org-srs-mouse)
