@@ -124,6 +124,29 @@
       (function
        (funcall limit)))))
 
+(cl-defgeneric org-srs-review-method-items (method &rest args))
+
+(defun org-srs-review-due-predicate ()
+  (cl-case (org-srs-time-now #'identity)
+    (current-time 'due)
+    (t `(due ,(org-srs-time-now)))))
+
+(defvar org-srs-review-source)
+
+(cl-defmethod org-srs-review-method-items ((_method (eql 'new)) &rest _args)
+  (cl-values
+   (org-srs-query `(and ,(org-srs-review-due-predicate) (or new learned)) org-srs-review-source)
+   (org-srs-query `(and (and) learned) org-srs-review-source)))
+
+(cl-defmethod org-srs-review-method-items ((_method (eql 'review)) &rest _args)
+  (cl-values
+   (org-srs-query `(and ,(org-srs-review-due-predicate) (not new)) org-srs-review-source)
+   (org-srs-query `(and (and) reviewed) org-srs-review-source)))
+
+;; (and new)                               ; new
+;; (and review (ever new))                 ; new-review
+;; (and review (not (ever new)))           ; old-review
+
 (cl-defun org-srs-review-due-items (&optional
                                     (source (current-buffer))
                                     (from (org-srs-time-now) fromp)
