@@ -35,6 +35,7 @@
 (require 'org-srs-query)
 (require 'org-srs-item)
 (require 'org-srs-time)
+(require 'org-srs-review-strategy)
 
 (defgroup org-srs-review nil
   "Scheduling and reviewing items within specified scopes."
@@ -126,131 +127,6 @@
       (function
        (funcall limit)))))
 
-(cl-defgeneric org-srs-review-method-items (type method &rest args))
-
-(defun org-srs-review-due-predicate ()
-  (cl-case (org-srs-time-now #'identity)
-    (current-time 'due)
-    (t `(due ,(org-srs-time-now)))))
-
-(cl-defmethod org-srs-review-method-items (type (method list) &rest args)
-  (cl-assert (null args))
-  (apply #'org-srs-review-method-items type method))
-
-(cl-defmethod org-srs-review-method-items ((_type (eql 'todo)) (_method (eql 'new)) &rest _args)
-  (org-srs-query `(and ,(org-srs-review-due-predicate) new) org-srs-review-source))
-
-(cl-defmethod org-srs-review-method-items ((_type (eql 'done)) (_method (eql 'new)) &rest _args)
-  (org-srs-query `(and (and) learned) org-srs-review-source))
-
-(cl-defmethod org-srs-review-method-items ((_type (eql 'todo)) (_method (eql 'old)) &rest _args)
-  (org-srs-query `(and ,(org-srs-review-due-predicate) (not new) (not reviewed)) org-srs-review-source))
-
-(cl-defmethod org-srs-review-method-items ((_type (eql 'done)) (_method (eql 'old)) &rest _args)
-  (org-srs-query `(and (and) (not learned) reviewed) org-srs-review-source))
-
-(cl-defmethod org-srs-review-method-items ((_type (eql 'todo)) (_method (eql 'reviewed)) &rest _args)
-  (org-srs-query `(and ,(org-srs-review-due-predicate) reviewed) org-srs-review-source))
-
-(cl-defmethod org-srs-review-method-items ((type (eql 'done)) (method (eql 'reviewed)) &rest args)
-  (org-srs-review-method-difference
-   (org-srs-query `(and (and) reviewed) org-srs-review-source)
-   (apply #'org-srs-review-method-items type method args))) ; TODO
-
-(cl-defmethod org-srs-review-method-items ((_type (eql 'todo)) (_method (eql 'limit)) &rest args)
-  (cl-destructuring-bind (method limit) args
-    (when (< (length (org-srs-review-method-items 'once method)) limit)
-      (org-srs-review-method-items 'due method))))
-
-(cl-defmethod org-srs-review-method-items ((_type (eql 'todo)) (_method (eql 'done)) &rest args)
-  (cl-destructuring-bind (method) args
-    (org-srs-review-method-items 'once method)))
-
-(defun org-srs-review-method-union (&rest args)
-  (cl-loop with table = (make-hash-table :test #'equal)
-           for items in args
-           do (cl-loop for item in items do (setf (gethash item table) t))
-           finally (cl-return (hash-table-keys table))))
-
-(cl-defmethod org-srs-review-method-items (type (_method (eql 'union)) &rest methods)
-  (apply #'org-srs-review-method-union (mapcar (apply-partially #'org-srs-review-method-items type) method)))
-
-;; TODO: ahead 23:59
-
-(defun org-srs-review-method-intersection (&rest args)
-  (cl-loop with table = (make-hash-table :test #'equal)
-           for items in args
-           do (cl-loop for item in items
-                       do (cl-incf (gethash item table 0) 1))
-           finally (cl-return
-                    (cl-loop with length = (length args)
-                             for item being the hash-key of table using (hash-value count)
-                             when (= count length)
-                             collect item))))
-
-(cl-defmethod org-srs-review-method-items ((type (eql 'todo)) (_method (eql 'intersection)) &rest methods)
-  (apply #'org-srs-review-method-intersection (mapcar (apply-partially #'org-srs-review-method-items type) method)))
-
-(defun org-srs-review-method-difference (&rest args)
-  (cl-loop with table = (make-hash-table :test #'equal)
-           initially (cl-loop for item in (cl-first args)
-                              do (setf (gethash item table) t))
-           for items in (cl-rest args)
-           do (cl-loop for item in items do (remhash item table))
-           finally (cl-return (hash-table-keys table))))
-
-(cl-defmethod org-srs-review-method-items ((type (eql 'todo)) (_method (eql 'difference)) &rest methods)
-  (apply #'org-srs-review-method-difference (mapcar (apply-partially #'org-srs-review-method-items type) method)))
-
-(cl-defmethod org-srs-review-method-items ((type (eql 'todo)) (_method (eql 'or)) &rest methods)
-  (cl-loop for method in methods thereis (org-srs-review-method-items type method)))
-
-(cl-defmethod org-srs-review-method-items ((type (eql 'done)) (_method (eql 'intersection)) &rest args)
-  (apply #'org-srs-review-method-items type 'union args))
-
-(cl-defmethod org-srs-review-method-items ((type (eql 'done)) (_method (eql 'or)) &rest args)
-  (apply #'org-srs-review-method-items type 'union args))
-
-(cl-defmethod org-srs-review-method-items ((type (eql 'done)) (_method (eql 'difference)) &rest methods)
-  (org-srs-review-method-items type (cl-first methods)))
-
-
-
-;; (and new)                               ; new
-;; (intersection review (once new))                 ; new-review
-;; (difference review (once new))           ; old-review
-
-(cl-defun org-srs-review-due-items (&optional
-                                    (source (current-buffer))
-                                    (from (org-srs-time-now) fromp)
-                                    (to (org-srs-review-learn-ahead-time)))
-  (cl-flet ((org-srs-query (predicate &optional (source source))
-              (push '(not suspended) (nthcdr 2 predicate))
-              (org-srs-query predicate source)))
-    (let* ((predicate-all '(and))
-           (predicate-due-now (if fromp `(due ,from) 'due))
-           (predicate-due-reviewed `(and ,predicate-due-now reviewed))
-           (predicate-due-new `(and ,predicate-due-now new))
-           (predicate-due-nonnew `(and ,predicate-due-now (not new)))
-           (predicate-due-now `(and ,predicate-due-now)))
-      (org-srs-query
-       (let ((items-learned (org-srs-query `(and ,predicate-all learned)))
-             (items-to-review (org-srs-query `(and (due ,to) (not reviewed) (not new))))
-             (items-reviewed (org-srs-query `(and ,predicate-all reviewed))))
-         (if (< (length items-reviewed) (org-srs-review-max-reviews-per-day))
-             (if (< (length items-learned) (org-srs-review-new-items-per-day))
-                 (if (or (org-srs-review-new-items-ignore-review-limit-p)
-                         (< (+ (length items-reviewed) (length items-to-review))
-                            (org-srs-review-max-reviews-per-day)))
-                     predicate-due-now
-                   predicate-due-nonnew)
-               predicate-due-nonnew)
-           (if (< (length items-learned) (org-srs-review-new-items-per-day))
-               (if (org-srs-review-new-items-ignore-review-limit-p)
-                   predicate-due-new
-                 predicate-due-reviewed)
-             predicate-due-reviewed)))))))
-
 (defconst org-srs-review-orders
   '((const :tag "Position" position)
     (const :tag "Random" random)
@@ -277,14 +153,42 @@
   :group 'org-srs-review
   :type `(choice . ,org-srs-review-orders))
 
-(defun org-srs-review-item-marker< (marker-a marker-b)
-  (let ((buffer-a (marker-buffer marker-a))
-        (buffer-b (marker-buffer marker-b)))
-    (if (eq buffer-a buffer-b)
-        (< marker-a marker-b)
-      (let ((name-a (or (buffer-file-name buffer-a) (buffer-name buffer-a)))
-            (name-b (or (buffer-file-name buffer-b) (buffer-name buffer-b))))
-        (string< name-a name-b)))))
+(cl-defun org-srs-review-due-items (&optional (source (current-buffer)))
+  (let ((org-srs-review-source source))
+    (org-srs-review-strategy-items
+     'todo
+      (or (org-srs-review-strategy)
+          '(sort
+            (union
+             (limit old 25)
+             (intersection (done new) reviewing))
+            random))))
+  (cl-flet ((org-srs-query (predicate &optional (source source))
+              (push '(not suspended) (nthcdr 2 predicate))
+              (org-srs-query predicate source)))
+    (let* ((predicate-all '(and))
+           (predicate-due-now (if fromp `(due ,from) 'due))
+           (predicate-due-reviewed `(and ,predicate-due-now reviewed))
+           (predicate-due-new `(and ,predicate-due-now new))
+           (predicate-due-nonnew `(and ,predicate-due-now (not new)))
+           (predicate-due-now `(and ,predicate-due-now)))
+      (org-srs-query
+       (let ((items-learned (org-srs-query `(and ,predicate-all learned)))
+             (items-to-review (org-srs-query `(and (due ,to) (not reviewed) (not new))))
+             (items-reviewed (org-srs-query `(and ,predicate-all reviewed))))
+         (if (< (length items-reviewed) (org-srs-review-max-reviews-per-day))
+             (if (< (length items-learned) (org-srs-review-new-items-per-day))
+                 (if (or (org-srs-review-new-items-ignore-review-limit-p)
+                         (< (+ (length items-reviewed) (length items-to-review))
+                            (org-srs-review-max-reviews-per-day)))
+                     predicate-due-now
+                   predicate-due-nonnew)
+               predicate-due-nonnew)
+           (if (< (length items-learned) (org-srs-review-new-items-per-day))
+               (if (org-srs-review-new-items-ignore-review-limit-p)
+                   predicate-due-new
+                 predicate-due-reviewed)
+             predicate-due-reviewed)))))))
 
 (cl-defun org-srs-review-next-due-item (&optional (source (current-buffer)))
   (cl-flet* ((cl-random-elt (sequence)
