@@ -1,4 +1,4 @@
-;;; org-srs-review.el --- Learn and review due items -*- lexical-binding:t -*-
+;;; org-srs-review-strategy.el --- TODO -*- lexical-binding:t -*-
 
 ;; Copyright (C) 2024-2025 Bohong Huang
 
@@ -19,8 +19,7 @@
 
 ;;; Commentary:
 
-;; This package is used to scan, schedule, learn, and review due Org-srs
-;; items, with various adjustable parameters to meet custom review needs.
+;; TODO
 
 ;;; Code:
 
@@ -33,12 +32,12 @@
 (require 'org-srs-query)
 
 (defgroup org-srs-review-strategy nil
-  "Scheduling and reviewing items within specified scopes."
+  "TODO"
   :group 'org-srs
   :prefix "org-srs-review-strategy-")
 
 (org-srs-property-defcustom org-srs-review-strategy nil
-  "Display order of review items."
+  "TODO"
   :group 'org-srs-review-strategy
   :type 'sexp)
 
@@ -90,13 +89,13 @@
   (cl-loop for strategy in strategies append (org-srs-review-strategy-items type strategy) until (org-srs-review-strategy-items 'todo strategy)))
 
 (cl-defmethod org-srs-review-strategy-items ((_type (eql 'todo)) (_strategy (eql 'new)) &rest _args)
-  (org-srs-query `(and ,(org-srs-review-strategy-due-predicate) new) org-srs-review-source))
+  (org-srs-query `(and ,(org-srs-review-strategy-due-predicate) new (not suspended)) org-srs-review-source))
 
 (cl-defmethod org-srs-review-strategy-items ((_type (eql 'done)) (_strategy (eql 'new)) &rest _args)
   (org-srs-query `(and (and) learned) org-srs-review-source))
 
 (cl-defmethod org-srs-review-strategy-items ((_type (eql 'todo)) (_strategy (eql 'old)) &rest _args)
-  (org-srs-query `(and ,(org-srs-review-strategy-due-predicate) (not new) (not reviewed)) org-srs-review-source))
+  (org-srs-query `(and ,(org-srs-review-strategy-due-predicate) (not new) (not reviewed) (not suspended)) org-srs-review-source))
 
 (cl-defmethod org-srs-review-strategy-items ((_type (eql 'done)) (_strategy (eql 'old)) &rest _args)
   (org-srs-query `(and (and) (not learned) reviewed) org-srs-review-source))
@@ -104,10 +103,10 @@
 (cl-defmethod org-srs-review-strategy-items ((_type (eql 'todo)) (_strategy (eql 'reviewing)) &rest _args)
   (org-srs-query `(and ,(org-srs-review-strategy-due-predicate) reviewed) org-srs-review-source))
 
-(cl-defmethod org-srs-review-strategy-items ((type (eql 'done)) (strategy (eql 'reviewing)) &rest args)
+(cl-defmethod org-srs-review-strategy-items ((_type (eql 'done)) (strategy (eql 'reviewing)) &rest args)
   (org-srs-review-strategy-difference
    (org-srs-query `(and (and) reviewed) org-srs-review-source)
-   (apply #'org-srs-review-strategy-items 'todo strategy args))) ; TODO
+   (apply #'org-srs-review-strategy-items 'todo strategy args)))
 
 (cl-defmethod org-srs-review-strategy-items ((_type (eql 'todo)) (_strategy (eql 'limit)) &rest args)
   (cl-destructuring-bind (strategy limit) args
@@ -116,6 +115,15 @@
 
 (cl-defmethod org-srs-review-strategy-items ((type (eql 'done)) (_strategy (eql 'limit)) &rest args)
   (cl-destructuring-bind (strategy _limit) args
+    (org-srs-review-strategy-items type strategy)))
+
+(cl-defmethod org-srs-review-strategy-items ((type (eql 'todo)) (_strategy (eql 'subseq)) &rest args)
+  (cl-destructuring-bind (strategy &optional (start 0) (end 1)) args
+    (let ((items (org-srs-review-strategy-items type strategy)))
+      (cl-subseq items start (min end (length items))))))
+
+(cl-defmethod org-srs-review-strategy-items ((type (eql 'done)) (_strategy (eql 'subseq)) &rest args)
+  (cl-destructuring-bind (strategy &rest args) args
     (org-srs-review-strategy-items type strategy)))
 
 (cl-defmethod org-srs-review-strategy-items (_type (_strategy (eql 'done)) &rest args)
@@ -129,9 +137,10 @@
            finally (cl-return (hash-table-keys table))))
 
 (cl-defmethod org-srs-review-strategy-items (type (_strategy (eql 'ahead)) &rest args)
-  (cl-destructuring-bind (strategy) args
+  (cl-destructuring-bind (strategy &optional (time (org-srs-time-tomorrow))) args
     (or (org-srs-review-strategy-items type strategy)
-        (org-srs-property-let ((org-srs-time-now (cl-constantly (org-srs-time+ (org-srs-time-tomorrow) -1 :sec))))
+        (org-srs-property-let ((org-srs-time-now (cl-constantly (org-srs-time+ time -1 :sec))))
+          (cl-assert (org-srs-time< (org-srs-time-now) (org-srs-time-tomorrow)))
           (org-srs-review-strategy-items type strategy)))))
 
 (defun org-srs-review-strategy-item-marker< (marker-a marker-b)
@@ -144,12 +153,13 @@
         (string< name-a name-b)))))
 
 (cl-defmethod org-srs-review-strategy-items (type (_strategy (eql 'sort)) &rest args)
-  (cl-destructuring-bind (strategy order &aux (items (org-srs-review-strategy-items type strategy))) args
-    (cl-ecase order
+  (cl-destructuring-bind (strategy order &rest args &aux (items (org-srs-review-strategy-items type strategy))) args
+    (cl-case order
       (position (cl-sort items #'org-srs-review-strategy-item-marker< :key (apply-partially #'apply #'org-srs-item-marker)))
       (due-date (cl-sort items #'org-srs-time< :key (apply-partially #'apply #'org-srs-item-due-time)))
       (priority (cl-sort items #'> :key (apply-partially #'apply #'org-srs-item-priority)))
-      (random (cl-sort items #'< :key #'sxhash-eq)))))
+      (random (cl-sort items #'< :key #'sxhash-eq))
+      (t (cl-sort items #'< :key order)))))
 
 ;; (let ((org-srs-review-source "./test.org"))
 ;;   (org-srs-review-strategy-items 'todo '(sort
