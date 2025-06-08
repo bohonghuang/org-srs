@@ -43,6 +43,7 @@
 (require 'org-srs-item-cloze)
 
 (require 'org-srs-review)
+(require 'org-srs-review-strategy)
 (require 'org-srs-review-cache)
 
 (require 'org-srs-schedule)
