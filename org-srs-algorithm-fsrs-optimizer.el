@@ -84,6 +84,8 @@
             ((string-match-p (rx "input the date at which before reviews will be ignored" (*? anychar) ":") prompt))
             ((string-match-p (rx "input filter out suspended cards" (*? anychar) ":") prompt)
              (process-send-string process "n"))
+            ((string-match-p (rx "input enable short-term component in FSRS model?" (*? anychar) ":") prompt)
+             (process-send-string process "y"))
             ((string-match-p (rx "Save graphs?" (*? anychar) ":") prompt)
              (process-send-string process "n"))
             (t (cl-return-from process-prompt)))
