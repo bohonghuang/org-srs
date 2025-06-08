@@ -35,6 +35,7 @@
 (require 'org-srs-query)
 (require 'org-srs-item)
 (require 'org-srs-time)
+(require 'org-srs-review-strategy)
 
 (defgroup org-srs-review nil
   "Scheduling and reviewing items within specified scopes."
@@ -56,6 +57,8 @@
 (defun org-srs-reviewing-p ()
   (if (boundp 'org-srs-reviewing-p) org-srs-reviewing-p
     (cl-loop for predicate in org-srs-reviewing-predicates thereis (funcall predicate))))
+
+(defvar org-srs-review-source)
 
 (defvar org-srs-review-rating)
 
@@ -124,37 +127,6 @@
       (function
        (funcall limit)))))
 
-(cl-defun org-srs-review-due-items (&optional
-                                    (source (current-buffer))
-                                    (from (org-srs-time-now) fromp)
-                                    (to (org-srs-review-learn-ahead-time)))
-  (cl-flet ((org-srs-query (predicate &optional (source source))
-              (push '(not suspended) (nthcdr 2 predicate))
-              (org-srs-query predicate source)))
-    (let* ((predicate-all '(and))
-           (predicate-due-now (if fromp `(due ,from) 'due))
-           (predicate-due-reviewed `(and ,predicate-due-now reviewed))
-           (predicate-due-new `(and ,predicate-due-now new))
-           (predicate-due-nonnew `(and ,predicate-due-now (not new)))
-           (predicate-due-now `(and ,predicate-due-now)))
-      (org-srs-query
-       (let ((items-learned (org-srs-query `(and ,predicate-all learned)))
-             (items-to-review (org-srs-query `(and (due ,to) (not reviewed) (not new))))
-             (items-reviewed (org-srs-query `(and ,predicate-all reviewed))))
-         (if (< (length items-reviewed) (org-srs-review-max-reviews-per-day))
-             (if (< (length items-learned) (org-srs-review-new-items-per-day))
-                 (if (or (org-srs-review-new-items-ignore-review-limit-p)
-                         (< (+ (length items-reviewed) (length items-to-review))
-                            (org-srs-review-max-reviews-per-day)))
-                     predicate-due-now
-                   predicate-due-nonnew)
-               predicate-due-nonnew)
-           (if (< (length items-learned) (org-srs-review-new-items-per-day))
-               (if (org-srs-review-new-items-ignore-review-limit-p)
-                   predicate-due-new
-                 predicate-due-reviewed)
-             predicate-due-reviewed)))))))
-
 (defconst org-srs-review-orders
   '((const :tag "Position" position)
     (const :tag "Random" random)
@@ -181,71 +153,45 @@
   :group 'org-srs-review
   :type `(choice . ,org-srs-review-orders))
 
-(defun org-srs-review-item-marker< (marker-a marker-b)
-  (let ((buffer-a (marker-buffer marker-a))
-        (buffer-b (marker-buffer marker-b)))
-    (if (eq buffer-a buffer-b)
-        (< marker-a marker-b)
-      (let ((name-a (or (buffer-file-name buffer-a) (buffer-name buffer-a)))
-            (name-b (or (buffer-file-name buffer-b) (buffer-name buffer-b))))
-        (string< name-a name-b)))))
-
-(cl-defun org-srs-review-next-due-item (&optional (source (current-buffer)))
-  (cl-flet* ((cl-random-elt (sequence)
-               (when sequence (elt sequence (random (length sequence)))))
-             (cl-disjoin (&rest functions)
-               (lambda (&rest args)
-                 (cl-loop for function in functions thereis (apply function args))))
-             (next-item (items order)
+(cl-defun org-srs-review-due-items (&optional (source (current-buffer)))
+  (cl-flet ((ahead (strategy)
+              (if-let ((ahead-time (org-srs-review-learn-ahead-time)))
+                  `(ahead ,strategy ,ahead-time)
+                strategy))
+            (limit-total-reviews (strategy)
+              (if (org-srs-review-new-items-ignore-review-limit-p)
+                  strategy
+                `(or (limit ,strategy ,(org-srs-review-max-reviews-per-day)) reviewing))))
+    (let ((org-srs-review-source source))
+      (org-srs-review-strategy-items
+       'todo
+       (or (org-srs-review-strategy)
+           (let ((strategy-new `(subseq
+                                 (sort
+                                  (or
+                                   (intersection (done new) reviewing)
+                                   (limit new ,(if (org-srs-review-new-items-ignore-review-limit-p)
+                                                   (org-srs-review-new-items-per-day)
+                                                 (min (- (org-srs-review-max-reviews-per-day)
+                                                         (length (org-srs-review-strategy-items 'todo 'old))
+                                                         (length (org-srs-review-strategy-items 'done 'old)))
+                                                      (org-srs-review-new-items-per-day)))))
+                                  ,(org-srs-review-order-new))))
+                 (strategy-review `(subseq
+                                    (sort
+                                     (or
+                                      (intersection (done old) reviewing)
+                                      ,(if (org-srs-review-new-items-ignore-review-limit-p)
+                                           `(limit old ,(org-srs-review-max-reviews-per-day))
+                                         'old))
+                                     ,(org-srs-review-order-review)))))
+             (let ((order (org-srs-review-order-new-review)))
                (cl-case order
-                 (position (cl-first (cl-sort items #'org-srs-review-item-marker< :key (apply-partially #'apply #'org-srs-item-marker))))
-                 (due-date (cl-first (cl-sort items #'org-srs-time< :key (apply-partially #'apply #'org-srs-item-due-time))))
-                 (priority (cl-first (cl-sort items #'> :key (apply-partially #'apply #'org-srs-item-priority))))
-                 (random (cl-random-elt items))
-                 (t (cl-etypecase order (function (funcall order items)))))))
-    (let ((order (org-srs-review-order-new-review)))
-      (cl-multiple-value-bind (new-items review-items)
-          (org-srs-query-with-loop
-            (cl-loop with predicate-new = (org-srs-query-predicate 'new)
-                     and predicate-learned = (org-srs-query-predicate 'learned)
-                     and predicate-due = (org-srs-query-predicate '(and due))
-                     and predicate-ahead = (org-srs-query-predicate `(and (due ,(org-srs-review-learn-ahead-time))))
-                     with items = (org-srs-review-due-items source (org-srs-time-tomorrow) (org-srs-time-tomorrow))
-                     for item in items
-                     if (apply #'org-srs-query-item-p predicate-new item)
-                     if (apply #'org-srs-query-item-p predicate-due item) collect item into new-due-items
-                     else if (apply #'org-srs-query-item-p predicate-ahead item) collect item into new-ahead-items end
-                     else if (apply #'org-srs-query-item-p predicate-learned item)
-                     if (apply #'org-srs-query-item-p predicate-due item) collect item into learned-due-items
-                     else if (apply #'org-srs-query-item-p predicate-ahead item) collect item into learned-ahead-items end
-                     else
-                     if (apply #'org-srs-query-item-p predicate-due item) collect item into review-due-items
-                     else if (apply #'org-srs-query-item-p predicate-ahead item) collect item into review-ahead-items end
-                     finally
-                     (cl-assert (null new-ahead-items))
-                     (cl-return
-                      (cl-case order
-                        (new-ahead
-                         (cl-values
-                          (and (not learned-due-items) (or new-due-items new-ahead-items))
-                          (or (or learned-due-items learned-ahead-items) (or review-due-items review-ahead-items))))
-                        (review-ahead
-                         (cl-values
-                          (and (not review-due-items) (or new-due-items new-ahead-items))
-                          (or (or review-due-items review-ahead-items) (or learned-due-items learned-ahead-items))))
-                        (t (let ((review-due-items (nconc learned-due-items review-due-items))
-                                 (review-ahead-items (nconc learned-ahead-items review-ahead-items)))
-                             (cl-values
-                              (or new-due-items (and (not review-due-items) new-ahead-items))
-                              (or review-due-items (and (not new-due-items) review-ahead-items)))))))))
-        (let* ((new-item (next-item new-items (org-srs-review-order-new)))
-               (review-item (next-item review-items (org-srs-review-order-review)))
-               (items (cl-delete nil (list new-item review-item)))
-               (order (cl-case order
-                        ((review-first review-ahead) (cl-disjoin #'cl-second #'cl-first))
-                        ((new-first new-ahead) #'cl-first)
-                        (t order))))
-          (next-item items order))))))
+                 (new-ahead (limit-total-reviews `(or ,(ahead strategy-new) ,(ahead strategy-review))))
+                 (review-ahead (limit-total-reviews `(or ,(ahead strategy-review) ,(ahead strategy-new))))
+                 (new-first (ahead (limit-total-reviews `(or ,strategy-new ,strategy-review))))
+                 (review-first (ahead (limit-total-reviews `(or ,strategy-review ,strategy-new))))
+                 (t (ahead (limit-total-reviews `(sort (union ,strategy-new ,strategy-review) ,order))))))))))))
 
 (defun org-srs-review-sources ()
   (cl-delete
@@ -298,7 +244,7 @@ ARG greater than 1, prompt the user to select the scope of items
 to review."
   (interactive (list (org-srs-review-source-dwim)))
   (require 'org-srs)
-  (if-let ((item-args (let ((org-srs-reviewing-p t)) (org-srs-review-next-due-item source))))
+  (if-let ((item-args (let ((org-srs-reviewing-p t)) (cl-first (org-srs-review-due-items source)))))
       (let ((item (cl-first item-args)) (org-srs-reviewing-p t))
         (apply #'org-srs-item-goto item-args)
         (cl-assert (not (local-variable-p 'org-srs-review-item)))
