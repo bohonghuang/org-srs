@@ -35,27 +35,41 @@
 (require 'org-srs-schedule-step)
 
 (cl-defmethod org-srs-algorithm-ensure ((_type (eql 'fsrs)) &rest args)
-  (apply #'fsrs-make-scheduler args))
+  (setf args (cl-nsubstitute :parameters :weights args)
+        args (cl-nsubstitute :desired-retention :request-retention args))
+  (when-let ((maximum-interval (cl-getf args :maximum-interval)))
+    (cl-etypecase maximum-interval
+      (integer (setf (cl-getf args :maximum-interval) (list maximum-interval :day)))
+      (cons)))
+  (when-let ((parameters (cl-getf args :parameters)))
+    (cl-loop with standard-parameters = (copy-sequence fsrs-default-parameters)
+             for i from 0
+             for parameter across parameters
+             do (setf (aref standard-parameters i) parameter)
+             finally (setf (cl-getf args :parameters) standard-parameters)))
+  (apply #'fsrs-make-scheduler :enable-fuzzing-p nil :learning-steps nil :relearning-steps nil args))
 
 (cl-defmethod org-srs-algorithm-repeat ((_fsrs fsrs-scheduler) (_args null))
-  (let ((card (fsrs-make-card)))
-    `((stability . ,(fsrs-card-stability card))
-      (difficulty . ,(fsrs-card-difficulty card))
-      (state . ,(fsrs-card-state card)))))
+  '((stability . 0.0) (difficulty . 0.0) (state . :new)))
 
 (defconst org-srs-algorithm-fsrs-card-slots (mapcar #'cl--slot-descriptor-name (cl--class-slots (cl-find-class 'fsrs-card))))
 
 (defun org-srs-algorithm-fsrs-ensure-card (object)
   (cl-etypecase object
     (fsrs-card object)
-    (list (cl-loop with card = (fsrs-make-card) and args = (copy-alist object)
-                   initially (setf (car (cl-find 'timestamp args :key #'car :from-end t)) 'last-review)
-                   for slot in org-srs-algorithm-fsrs-card-slots
-                   for cons = (assoc slot args)
-                   for (key . value) = cons
-                   when cons
-                   do (setf (eieio-oref card key) value)
-                   finally (cl-return card)))))
+    (list
+     (when (eq (alist-get 'state object) :new)
+       (setf (alist-get 'stability object) nil
+             (alist-get 'difficulty object) nil
+             (alist-get 'state object) :learning))
+     (cl-loop with card = (fsrs-make-card) and args = (copy-alist object)
+              initially (setf (car (cl-find 'timestamp args :key #'car :from-end t)) 'last-review)
+              for slot in org-srs-algorithm-fsrs-card-slots
+              for cons = (assoc slot args)
+              for (key . value) = cons
+              when cons
+              do (setf (eieio-oref card key) value)
+              finally (cl-return card)))))
 
 (cl-defmethod org-srs-algorithm-repeat ((fsrs fsrs-scheduler) (args list))
   (cl-loop with card-old = (org-srs-algorithm-fsrs-ensure-card args)
