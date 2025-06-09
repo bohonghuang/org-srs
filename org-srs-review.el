@@ -167,19 +167,20 @@
        'todo
        (or (org-srs-review-strategy)
            (let ((strategy-new `(subseq
-                                 (sort
-                                  (or
-                                   (intersection (done new) reviewing)
-                                   (limit new ,(if (org-srs-review-new-items-ignore-review-limit-p)
-                                                   (org-srs-review-new-items-per-day)
-                                                 (min (- (org-srs-review-max-reviews-per-day)
-                                                         (length (org-srs-review-strategy-items 'todo 'old))
-                                                         (length (org-srs-review-strategy-items 'done 'old)))
-                                                      (org-srs-review-new-items-per-day)))))
-                                  ,(org-srs-review-order-new))))
+                                 (or (sort
+                                      (intersection (done new) reviewing)
+                                      ,(org-srs-review-order-review))
+                                     (sort
+                                      (limit new ,(if (org-srs-review-new-items-ignore-review-limit-p)
+                                                      (org-srs-review-new-items-per-day)
+                                                    (min (- (org-srs-review-max-reviews-per-day)
+                                                            (length (org-srs-review-strategy-items 'todo 'old))
+                                                            (length (org-srs-review-strategy-items 'done 'old)))
+                                                         (org-srs-review-new-items-per-day))))
+                                      ,(org-srs-review-order-new)))))
                  (strategy-review `(subseq
                                     (sort
-                                     (or
+                                     (union
                                       (intersection (done old) reviewing)
                                       ,(if (org-srs-review-new-items-ignore-review-limit-p)
                                            `(limit old ,(org-srs-review-max-reviews-per-day))
