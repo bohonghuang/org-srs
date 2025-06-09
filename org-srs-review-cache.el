@@ -81,7 +81,7 @@
                  do (setf (gethash item (alist-get predicate queries nil nil #'equal)) t))))
 
 (cl-defun org-srs-review-cache-update-pending (&optional (cache (org-srs-review-cache)))
-  (let ((time (floor (time-to-seconds))))
+  (let ((time (floor (time-to-seconds (org-srs-time-now)))))
     (cl-assert (>= time (org-srs-review-cache-time cache)))
     (when (> time (org-srs-review-cache-time cache))
       (org-srs-review-cache-update-pending-1 cache)
