@@ -64,12 +64,15 @@
     (match-string 1 output)))
 
 (cl-defun org-srs-algorithm-fsrs-optimizer-start-process (file &optional (callback #'ignore))
-  (let ((buffer (generate-new-buffer "*fsrs-optimizer*")))
+  (let ((buffer (generate-new-buffer "*fsrs-optimizer*"))
+        (algorithm (org-srs-algorithm-current)))
     (cl-assert (null (get-buffer-process buffer)))
+    (cl-assert (fsrs-scheduler-p algorithm))
     (let ((process (let ((default-directory (temporary-file-directory)))
                      (start-process "fsrs-optimizer" buffer "python3" "-m" "fsrs_optimizer" (expand-file-name file))))
           (start-of-day (cl-loop for (amount unit) on (org-srs-time-start-of-next-day) by #'cddr
-                                 sum (cl-ecase unit (:hour amount) (:sec (/ amount 60.0))))))
+                                 sum (cl-ecase unit (:hour amount) (:sec (/ amount 60.0)))))
+          (retention (fsrs-scheduler-desired-retention algorithm)))
       (message "Optimizing...")
       (set-process-filter
        process
@@ -98,17 +101,19 @@
           "Missing Python module `fsrs-optimizer'")
          (with-current-buffer buffer
            (goto-char (point-min))
-           (cl-assert
-            (re-search-forward (rx "Paste this into your scheduling code") nil t) nil
-            "Insufficient review history or unknown optimizer output")
-           (replace-regexp-in-region (rx "//" (*? anychar) eol) "" (point))
-           (replace-regexp-in-region (rx "," (*? (char blank control)) "}") "}" (point))
-           (funcall callback (cl-loop for (key . value) in (json-read)
-                                      for keyword = (cl-case key
-                                                      (w :weights)
-                                                      (requestRetention :request-retention)
-                                                      (maximumInterval :maximum-interval))
-                                      when keyword nconc (list keyword value))))
+           (let ((retention (when (re-search-forward (rx "Failed to find optimal retention") nil t) retention)))
+             (cl-assert
+              (re-search-forward (rx "Paste this into your scheduling code") nil t) nil
+              "Insufficient review history or unknown optimizer output")
+             (replace-regexp-in-region (rx "//" (*? anychar) eol) "" (point))
+             (replace-regexp-in-region (rx "," (*? (char blank control)) "}") "}" (point))
+             (funcall callback (cl-loop for (key . value) in (json-read)
+                                        for keyword = (cl-case key
+                                                        (w :weights)
+                                                        (requestRetention :request-retention)
+                                                        (maximumInterval :maximum-interval))
+                                        when (and (eq keyword :request-retention) retention) do (setf value retention)
+                                        when keyword nconc (list keyword value)))))
          (kill-buffer buffer))))))
 
 (cl-defun org-srs-algorithm-fsrs-optimizer-optimize (markers &optional (callback #'ignore))
