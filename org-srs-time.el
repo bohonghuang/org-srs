@@ -79,8 +79,8 @@
   :type 'function
   :transform #'funcall)
 
-(defun org-srs-time-today ()
-  (cl-multiple-value-bind (time hms) (org-srs-time-truncate-hms (org-srs-time-now))
+(cl-defun org-srs-time-today (&optional (now (org-srs-time-now)))
+  (cl-multiple-value-bind (time hms) (org-srs-time-truncate-hms now)
     (let ((start-of-day (org-srs-time-start-of-next-day)))
       (if (< (org-srs-time-desc-seconds hms) (org-srs-time-desc-seconds start-of-day))
           (apply #'org-srs-time+ time -1 :day start-of-day)
