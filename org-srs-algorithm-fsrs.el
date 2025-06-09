@@ -71,8 +71,21 @@
               do (setf (eieio-oref card key) value)
               finally (cl-return card)))))
 
+(cl-defun org-srs-algorithm-fsrs-card-round-last-review (card &optional (now (org-srs-time-now)))
+  (setf (fsrs-card-last-review card)
+        (org-srs-timestamp+
+         (org-srs-timestamp now)
+         (- (max (org-srs-time-difference
+                  (org-srs-time-today now)
+                  (org-srs-time-today (org-srs-timestamp-time (fsrs-card-last-review card))))
+                 (org-srs-time-difference
+                  now
+                  (org-srs-timestamp-time (fsrs-card-last-review card)))))
+         :sec))
+  card)
+
 (cl-defmethod org-srs-algorithm-repeat ((fsrs fsrs-scheduler) (args list))
-  (cl-loop with card-old = (org-srs-algorithm-fsrs-ensure-card args)
+  (cl-loop with card-old = (org-srs-algorithm-fsrs-card-round-last-review (org-srs-algorithm-fsrs-ensure-card args))
            and rating = (alist-get 'rating args)
            and timestamp = (alist-get 'timestamp args (org-srs-timestamp-now))
            with card-new = (cl-nth-value 0 (fsrs-scheduler-review-card fsrs card-old rating timestamp))
