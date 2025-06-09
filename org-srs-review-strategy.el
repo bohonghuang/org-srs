@@ -46,10 +46,7 @@
 
 (cl-defgeneric org-srs-review-strategy-items (type strategy &rest args))
 
-(defun org-srs-review-strategy-due-predicate ()
-  (cl-case (org-srs-time-now #'identity)
-    (current-time 'due)
-    (t `(due ,(org-srs-time-now)))))
+(defvar org-srs-review-strategy-due-predicate 'due)
 
 (cl-defmethod org-srs-review-strategy-items (type (strategy list) &rest args)
   (cl-assert (null args))
@@ -90,19 +87,19 @@
   (cl-loop for strategy in strategies append (org-srs-review-strategy-items type strategy) until (org-srs-review-strategy-items 'todo strategy)))
 
 (cl-defmethod org-srs-review-strategy-items ((_type (eql 'todo)) (_strategy (eql 'new)) &rest _args)
-  (org-srs-query `(and ,(org-srs-review-strategy-due-predicate) new (not suspended)) org-srs-review-source))
+  (org-srs-query `(and ,org-srs-review-strategy-due-predicate new (not suspended)) org-srs-review-source))
 
 (cl-defmethod org-srs-review-strategy-items ((_type (eql 'done)) (_strategy (eql 'new)) &rest _args)
   (org-srs-query 'learned org-srs-review-source))
 
 (cl-defmethod org-srs-review-strategy-items ((_type (eql 'todo)) (_strategy (eql 'old)) &rest _args)
-  (org-srs-query `(and ,(org-srs-review-strategy-due-predicate) (not new) (not reviewed) (not suspended)) org-srs-review-source))
+  (org-srs-query `(and ,org-srs-review-strategy-due-predicate (not new) (not reviewed) (not suspended)) org-srs-review-source))
 
 (cl-defmethod org-srs-review-strategy-items ((_type (eql 'done)) (_strategy (eql 'old)) &rest _args)
   (org-srs-query '(and (not learned) reviewed) org-srs-review-source))
 
 (cl-defmethod org-srs-review-strategy-items ((_type (eql 'todo)) (_strategy (eql 'reviewing)) &rest _args)
-  (org-srs-query `(and ,(org-srs-review-strategy-due-predicate) reviewed) org-srs-review-source))
+  (org-srs-query `(and ,org-srs-review-strategy-due-predicate reviewed) org-srs-review-source))
 
 (cl-defmethod org-srs-review-strategy-items ((_type (eql 'done)) (strategy (eql 'reviewing)) &rest args)
   (org-srs-review-strategy-difference
@@ -140,7 +137,7 @@
 (cl-defmethod org-srs-review-strategy-items (type (_strategy (eql 'ahead)) &rest args)
   (cl-destructuring-bind (strategy &optional (time (org-srs-time-tomorrow))) args
     (or (org-srs-review-strategy-items type strategy)
-        (org-srs-property-let ((org-srs-time-now (cl-constantly (org-srs-time+ time -1 :sec))))
+        (let ((org-srs-review-strategy-due-predicate `(due ,time)))
           (cl-assert (org-srs-time< (org-srs-time-now) (org-srs-time-tomorrow)))
           (org-srs-review-strategy-items type strategy)))))
 
