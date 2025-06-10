@@ -59,6 +59,17 @@
            do (setf (eieio-oref new-object slot) (org-srs-stats-deep-copy (eieio-oref object slot)))
            finally (cl-return new-object)))
 
+(cl-defun org-srs-stats-simulate-review-rating (rating &optional (item (cl-multiple-value-list (org-srs-item-at-point))))
+  (defvar org-srs-review-rating)
+  (defvar org-srs-review-item)
+  (let ((org-srs-review-rating rating)
+        (org-srs-review-item item))
+    (cl-assert (not (local-variable-p 'org-srs-review-before-rate-hook)))
+    (cl-assert (not (local-variable-p 'org-srs-review-after-rate-hook)))
+    (run-hooks 'org-srs-review-before-rate-hook)
+    (org-srs-log-repeat rating)
+    (run-hooks 'org-srs-review-after-rate-hook)))
+
 (cl-defun org-srs-stats-call-with-rating-simulator (thunk)
   (org-srs-property-let org-srs-algorithm
     (org-srs-property-let org-srs-schedule
@@ -79,20 +90,12 @@
                 (insert "#+NAME: " (apply #'org-srs-item-link org-srs-review-item-args)))
               (org-srs-table-duplicate-line)
               (let ((buffer-undo-list nil))
-                (defvar org-srs-review-rating)
-                (defvar org-srs-review-item)
-                (defvar cl--random-state)
                 (cl-flet ((rate (rating)
                             (save-excursion
-                              (prog2 (let ((org-srs-review-rating rating)
-                                           (org-srs-review-item org-srs-review-item-args)
-                                           (cl--random-state (org-srs-stats-deep-copy cl--random-state)))
+                              (defvar cl--random-state)
+                              (prog2 (let ((cl--random-state (org-srs-stats-deep-copy cl--random-state)))
                                        (undo-boundary)
-                                       (cl-assert (not (local-variable-p 'org-srs-review-before-rate-hook)))
-                                       (cl-assert (not (local-variable-p 'org-srs-review-after-rate-hook)))
-                                       (run-hooks 'org-srs-review-before-rate-hook)
-                                       (org-srs-log-repeat rating)
-                                       (run-hooks 'org-srs-review-after-rate-hook))
+                                       (org-srs-stats-simulate-review-rating rating org-srs-review-item-args))
                                   (org-srs-timestamp-difference
                                    (org-srs-item-due-timestamp)
                                    (org-srs-timestamp-now))

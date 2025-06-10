@@ -33,5 +33,21 @@
   :group 'org-srs
   :prefix "org-srs-schedule-")
 
+(defun org-srs-reschedule-item ()
+  (org-srs-table-forward-star -1)
+  (org-srs-property-let ((org-srs-time-now (cl-constantly (org-srs-timestamp-time (org-srs-table-field 'timestamp)))))
+    (org-srs-stats-simulate-review-rating (org-srs-table-ensure-read-field (org-srs-table-field 'rating)))))
+
+(defun org-srs-reschedule (source)
+  (interactive (list (org-srs-review-source-dwim)))
+  (org-srs-property-let ((org-srs-review-cache-p nil) org-srs-algorithm)
+    (org-srs-query
+     `(and (not new) (not suspended) reviewed
+           ,(lambda ()
+              (save-excursion
+                (org-srs-reschedule-item))))
+     source)))
+
+
 (provide 'org-srs-schedule)
 ;;; org-srs-schedule.el ends here

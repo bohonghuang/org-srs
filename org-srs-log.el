@@ -50,10 +50,10 @@
   (org-srs-table-goto-starred-line)
   (org-srs-property-let t
     (org-srs-table-with-temp-buffer
-      (unless (setf (org-srs-table-field 'timestamp) (org-srs-timestamp-now)
-                    (org-srs-table-field 'rating) (prin1-to-string rating t)
-                    args (nconc (org-srs-table-current-line) args)
-                    args (org-srs-algorithm-repeat algorithm args))
+      (cl-loop for cons in `((timestamp . ,(org-srs-timestamp-now)) (rating . ,rating))
+               for ((name . value)) = (push cons args)
+               do (setf (org-srs-table-field name) (prin1-to-string value t)))
+      (unless (setf args (org-srs-algorithm-repeat algorithm args))
         (cl-return-from org-srs-log-repeat))
       (cl-loop for (name . nil) in (org-srs-table-column-name-number-alist)
                for field = (alist-get name args)

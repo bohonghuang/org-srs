@@ -123,13 +123,15 @@
         (forward-line offset)))
       (org-srs-table-current-line))))
 
-(defun org-srs-table-forward-star ()
+(cl-defun org-srs-table-forward-star (&optional (n 1))
   (when (org-srs-table-goto-starred-line)
     (goto-char (match-beginning 1))
     (save-mark-and-excursion
       (deactivate-mark)
       (org-table-rotate-recalc-marks " "))
-    (org-table-next-row)
+    (if (cl-plusp n)
+        (cl-loop repeat n do (org-table-next-row))
+      (forward-line n))
     (save-mark-and-excursion
       (deactivate-mark)
       (org-table-rotate-recalc-marks "*"))))
