@@ -248,10 +248,13 @@ to review."
     (org-srs-review-quit)))
 
 ;;;###autoload
-(cl-defun org-srs-review-postpone (&optional (time '(1 :day)))
-  "Postpone the current review item by TIME."
+(cl-defun org-srs-review-postpone (&optional (time '(1 :day)) &rest args)
+  "Postpone the current review item by TIME.
+
+ARGS specifies the item to postpone. If ARGS is nil, the current item is used."
   (interactive (list (read-from-minibuffer "Interval: " (prin1-to-string '(1 :day)) nil t)))
-  (org-srs-item-with-current org-srs-review-item
+  (setf args (or args org-srs-review-item (cl-multiple-value-list (org-srs-item-at-point))))
+  (org-srs-item-with-current args
     (setf (org-srs-item-due-timestamp) (cl-etypecase time
                                          (org-srs-timestamp time)
                                          (list (apply #'org-srs-timestamp+ (org-srs-item-due-timestamp) time)))))

@@ -71,24 +71,6 @@
     (when-let ((timestamp (org-srs-schedule-bury-due-timestamp interval)))
       (setf (org-srs-table-field 'timestamp) timestamp))))
 
-(cl-defmethod org-srs-algorithm-repeat ((_ (eql 'org-srs-schedule-bury)) _) nil)
-
-(cl-defun org-srs-schedule-bury (&optional (interval (org-srs-schedule-bury-interval)) (item org-srs-review-item))
-  "Bury ITEM to postpone its review after INTERVAL.
-
-If called interactively with a `\\[universal-argument]`, prompt the
-user to specify the interval until the next review."
-  (interactive (cl-destructuring-bind (&optional (arg 1)) current-prefix-arg
-                 (cl-assert (org-srs-reviewing-p))
-                 (when (> arg 1)
-                   (list (read-minibuffer "Interval until the next review: " (format "%s" (org-srs-schedule-bury-interval)))))))
-  (cl-loop (funcall (or (org-srs-item-confirm-pending-p) (cl-return))))
-  (org-srs-item-with-current item
-    (org-srs-table-goto-starred-line)
-    (org-srs-schedule-bury-update-due-timestamp interval))
-  (org-srs-property-let ((org-srs-algorithm 'org-srs-schedule-bury))
-    (apply #'org-srs-review-rate nil item)))
-
 (add-hook 'org-srs-review-after-rate-hook #'org-srs-schedule-bury-update-due-timestamp 40)
 
 (provide 'org-srs-schedule-bury)

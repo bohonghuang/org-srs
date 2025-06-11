@@ -263,15 +263,10 @@ the current item."
             org-srs-item-after-confirm-hook)))
       (ignore-errors (funcall command)))))
 
-(defun org-srs-item-confirm-cleanup-on-quit ()
-  (cl-loop for hook in '(org-srs-item-before-confirm-hook org-srs-item-after-confirm-hook)
-           when (local-variable-p hook)
-           when (boundp 'org-srs-review-rating)
-           do (cl-assert (null (symbol-value 'org-srs-review-rating)))
-           end and
-           do (run-hooks hook)))
+(defun org-srs-item-confirm-cleanup ()
+  (cl-loop (funcall (or (org-srs-item-confirm-pending-p) (cl-return)))))
 
-(add-hook 'org-srs-review-before-rate-hook #'org-srs-item-confirm-cleanup-on-quit)
+(add-hook 'org-srs-review-before-rate-hook #'org-srs-item-confirm-cleanup)
 
 (org-srs-property-defcustom org-srs-item-confirm #'org-srs-item-confirm-read-key
   "Method to confirm the current item and reveal its answer."
