@@ -194,6 +194,14 @@
         (alist-get (read (completing-read "Review scope: " (mapcar #'car sources) nil t)) sources)
       (cdr (cl-first sources)))))
 
+(defun org-srs-review-end ()
+  (cl-assert (local-variable-p 'org-srs-review-item))
+  (cl-assert (consp org-srs-review-item))
+  (kill-local-variable 'org-srs-review-item)
+  (cl-assert (null org-srs-review-item))
+  (kill-local-variable 'org-srs-review-before-rate-hook)
+  (kill-local-variable 'org-srs-review-after-rate-hook))
+
 ;;;###autoload
 (cl-defun org-srs-review-start (&optional (source (cdr (cl-first (org-srs-review-sources)))))
   "Start a review session for items in SOURCE.
@@ -209,18 +217,13 @@ to review."
         (cl-assert (not (local-variable-p 'org-srs-review-item)))
         (cl-assert (null org-srs-review-item))
         (setq-local org-srs-review-item item-args)
-        (org-srs-review-add-hook-once
-         'org-srs-review-after-rate-hook
-         (lambda ()
-           (cl-assert (local-variable-p 'org-srs-review-item))
-           (cl-assert (consp org-srs-review-item))
-           (kill-local-variable 'org-srs-review-item)
-           (cl-assert (null org-srs-review-item)))
-         99)
         (apply #'org-srs-item-review (car item) (cdr item))
         (org-srs-review-add-hook-once
          'org-srs-review-after-rate-hook
-         (lambda () (when (org-srs-review-continue-p) (org-srs-review-start source)))
+         (lambda ()
+           (org-srs-review-end)
+           (when (org-srs-review-continue-p)
+             (org-srs-review-start source)))
          100))
     (run-hook-with-args 'org-srs-review-finish-hook source)))
 
@@ -234,9 +237,25 @@ to review."
   "Quit the current review session."
   (interactive)
   (cl-assert (org-srs-reviewing-p))
-  (let ((org-srs-reviewing-p nil) (org-srs-review-rating nil))
+  (defvar org-srs-review-rating)
+  (let ((org-srs-reviewing-p (bound-and-true-p org-srs-reviewing-p))
+        (org-srs-review-rating nil))
     (run-hooks 'org-srs-review-before-rate-hook)
     (run-hooks 'org-srs-review-after-rate-hook)))
+
+(defun org-srs-review-next ()
+  (let ((org-srs-reviewing-p t))
+    (org-srs-review-quit)))
+
+;;;###autoload
+(cl-defun org-srs-review-postpone (&optional (time '(1 :day)))
+  "Postpone the current review item by TIME."
+  (interactive (list (read-from-minibuffer "Interval: " (prin1-to-string '(1 :day)) nil t)))
+  (org-srs-item-with-current org-srs-review-item
+    (setf (org-srs-item-due-timestamp) (cl-etypecase time
+                                         (org-srs-timestamp time)
+                                         (list (apply #'org-srs-timestamp+ (org-srs-item-due-timestamp) time)))))
+  (org-srs-review-next))
 
 (provide 'org-srs-review)
 ;;; org-srs-review.el ends here
