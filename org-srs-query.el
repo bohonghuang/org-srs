@@ -74,13 +74,12 @@
   (lambda ()
     (save-excursion
       (when (re-search-forward org-srs-log-latest-timestamp-regexp (org-srs-table-end))
-        (forward-line -1)
-        (or (org-at-table-hline-p) (string-empty-p (org-srs-table-field 'rating)))))))
+        (forward-line -2)
+        (org-at-table-hline-p)))))
 
-(cl-defun org-srs-query-predicate-updated
-    (&optional
-     (from (org-srs-time-today) fromp)
-     (to (unless fromp (org-srs-time-tomorrow))))
+(cl-defun org-srs-query-predicate-updated (&optional
+                                           (from (org-srs-time-today) fromp)
+                                           (to (unless fromp (org-srs-time-tomorrow))))
   (lambda ()
     (save-excursion
       (when (re-search-forward org-srs-log-latest-timestamp-regexp (org-srs-table-end))
@@ -95,18 +94,19 @@
       (when (re-search-forward org-srs-log-latest-timestamp-regexp (org-srs-table-end))
         (time-less-p (org-srs-timestamp-time (match-string-no-properties 2)) now)))))
 
-(cl-defun org-srs-query-predicate-learned
-    (&optional
-     (from (org-srs-time-today) fromp)
-     (to (unless fromp (org-srs-time-tomorrow))))
+(cl-defun org-srs-query-predicate-learned (&optional
+                                           (from (org-srs-time-today) fromp)
+                                           (to (unless fromp (org-srs-time-tomorrow))))
   (lambda ()
     (save-excursion
       (goto-char (org-srs-table-begin))
-      (org-table-goto-line 3)
-      (unless (string-empty-p (org-srs-table-field 'rating))
-        (when-let ((timestamp (org-srs-table-field 'timestamp)))
-          (let ((time (org-srs-timestamp-time timestamp)))
-            (and (time-less-p from time) (or (null to) (time-less-p time to)))))))))
+      (when (org-table-goto-line 4)
+        (beginning-of-line)
+        (when (save-excursion (re-search-forward org-srs-log-latest-timestamp-regexp (org-srs-table-end) t))
+          (forward-line -1)
+          (when-let ((timestamp (org-srs-table-field 'timestamp)))
+            (let ((time (org-srs-timestamp-time timestamp)))
+              (and (time-less-p from time) (or (null to) (time-less-p time to))))))))))
 
 (defun org-srs-query-predicate-reviewed (&rest args)
   (org-srs-query-predicate-and
