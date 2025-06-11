@@ -50,7 +50,7 @@
   (apply #'fsrs-make-scheduler :enable-fuzzing-p nil :learning-steps nil :relearning-steps nil args))
 
 (cl-defmethod org-srs-algorithm-repeat ((_fsrs fsrs-scheduler) (_args null))
-  '((stability . 0.0) (difficulty . 0.0) (state . :new)))
+  '((rating . nil) (stability . 0.0) (difficulty . 0.0) (state . :new)))
 
 (defconst org-srs-algorithm-fsrs-card-slots (mapcar #'cl--slot-descriptor-name (cl--class-slots (cl-find-class 'fsrs-card))))
 

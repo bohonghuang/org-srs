@@ -91,7 +91,7 @@
                                        (cl-assert (not (local-variable-p 'org-srs-review-before-rate-hook)))
                                        (cl-assert (not (local-variable-p 'org-srs-review-after-rate-hook)))
                                        (run-hooks 'org-srs-review-before-rate-hook)
-                                       (org-srs-log-repeat rating)
+                                       (org-srs-log-repeat :rating rating)
                                        (run-hooks 'org-srs-review-after-rate-hook))
                                   (org-srs-timestamp-difference
                                    (org-srs-item-due-timestamp)

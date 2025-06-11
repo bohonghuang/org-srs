@@ -143,7 +143,8 @@
   (newline)
   (cl-loop initially (insert "| * |")
            for (nil . field) in alist
-           do (insert (prin1-to-string field t) " | "))
+           when field do (insert (prin1-to-string field t))
+           do (insert " | "))
   (org-table-align))
 
 (defun org-srs-table-goto-column (name)

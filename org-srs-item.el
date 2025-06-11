@@ -148,9 +148,9 @@
     (cl-assert (looking-at org-heading-regexp))
     (org-get-priority (match-string-no-properties 0))))
 
-(defun org-srs-item-repeat (item rating)
+(defun org-srs-item-repeat (item &rest args)
   (org-srs-item-goto item)
-  (org-srs-log-repeat rating))
+  (apply #'org-srs-log-repeat args))
 
 (defconst org-srs-item-header-regexp (rx bol (* blank) "#+NAME: " (* blank) (regexp org-srs-item-regexp) (* blank) eol))
 
