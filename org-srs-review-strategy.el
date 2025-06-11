@@ -84,7 +84,7 @@
   (cl-loop for strategy in strategies thereis (org-srs-review-strategy-items type strategy)))
 
 (cl-defmethod org-srs-review-strategy-items ((type (eql 'done)) (_strategy (eql 'or)) &rest strategies)
-  (cl-loop for strategy in strategies append (org-srs-review-strategy-items type strategy) until (org-srs-review-strategy-items 'todo strategy)))
+  (apply #'org-srs-review-strategy-items type 'union strategies))
 
 (cl-defmethod org-srs-review-strategy-items ((_type (eql 'todo)) (_strategy (eql 'new)) &rest _args)
   (org-srs-query `(and ,org-srs-review-strategy-due-predicate new (not suspended)) org-srs-review-source))
@@ -136,10 +136,9 @@
 
 (cl-defmethod org-srs-review-strategy-items (type (_strategy (eql 'ahead)) &rest args)
   (cl-destructuring-bind (strategy &optional (time (org-srs-time-tomorrow))) args
-    (or (org-srs-review-strategy-items type strategy)
-        (let ((org-srs-review-strategy-due-predicate `(due ,time)))
-          (cl-assert (org-srs-time< (org-srs-time-now) (org-srs-time-tomorrow)))
-          (org-srs-review-strategy-items type strategy)))))
+    (let ((org-srs-review-strategy-due-predicate `(due ,time)))
+      (cl-assert (org-srs-time< (org-srs-time-now) (org-srs-time-tomorrow)))
+      (org-srs-review-strategy-items type strategy))))
 
 (defun org-srs-review-strategy-item-marker< (marker-a marker-b)
   (let ((buffer-a (marker-buffer marker-a))
