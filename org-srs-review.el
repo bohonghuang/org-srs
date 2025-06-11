@@ -35,6 +35,7 @@
 (require 'org-srs-query)
 (require 'org-srs-item)
 (require 'org-srs-time)
+(require 'org-srs-review-rate)
 (require 'org-srs-review-strategy)
 
 (defgroup org-srs-review nil
@@ -43,12 +44,6 @@
   :prefix "org-srs-review-")
 
 (defvar org-srs-review-item nil)
-
-(cl-eval-when (:compile-toplevel :load-toplevel :execute)
-  (defconst org-srs-review-ratings '(:easy :good :hard :again)))
-
-(defvar org-srs-review-before-rate-hook nil)
-(defvar org-srs-review-after-rate-hook nil)
 
 (defvar org-srs-reviewing-p)
 
@@ -60,44 +55,7 @@
 
 (defvar org-srs-review-source)
 
-(defvar org-srs-review-rating)
-
 (defalias 'org-srs-review-add-hook-once 'org-srs-item-add-hook-once)
-
-(cl-defun org-srs-review-rate (rating &rest args &aux (item (or args org-srs-review-item)))
-  (cl-assert (not buffer-read-only) nil "Buffer %S must be editable" (current-buffer))
-  (if org-srs-review-item
-      (prog2 (let ((org-srs-review-rating rating))
-               (run-hooks 'org-srs-review-before-rate-hook))
-          (org-srs-item-with-current item
-            (org-srs-table-goto-starred-line)
-            (unless args
-              (cl-assert
-               (time-less-p
-                (org-srs-timestamp-time (org-srs-table-field 'timestamp))
-                (org-srs-time-tomorrow))))
-            (org-srs-item-repeat (cl-nth-value 0 (org-srs-item-at-point)) rating))
-        (let ((org-srs-review-rating rating))
-          (run-hooks 'org-srs-review-after-rate-hook)))
-    (cl-assert args)
-    (let ((org-srs-review-item args))
-      (apply #'org-srs-review-rate rating args))))
-
-(defmacro org-srs-review-define-rating-commands ()
-  `(progn . ,(cl-loop for rating in org-srs-review-ratings
-                      for rating-name = (string-trim (symbol-name rating) ":")
-                      collect `(defun ,(intern (format "%s%s" 'org-srs-review-rate- rating-name)) ()
-                                 ,(format "Rate the item being reviewed as %s." rating-name)
-                                 (interactive)
-                                 (require 'org-srs)
-                                 (cl-assert (org-srs-reviewing-p))
-                                 (org-srs-review-rate ,rating)))))
-
-;;;###autoload (autoload 'org-srs-review-rate-easy "org-srs-review" "Rate the item being reviewed as easy." t)
-;;;###autoload (autoload 'org-srs-review-rate-good "org-srs-review" "Rate the item being reviewed as good." t)
-;;;###autoload (autoload 'org-srs-review-rate-hard "org-srs-review" "Rate the item being reviewed as hard." t)
-;;;###autoload (autoload 'org-srs-review-rate-again "org-srs-review" "Rate the item being reviewed as again." t)
-(org-srs-review-define-rating-commands)
 
 (org-srs-property-defcustom org-srs-review-new-items-per-day 20
   "Maximum number of new item to introduce in a day."
