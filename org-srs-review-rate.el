@@ -56,7 +56,7 @@
                (time-less-p
                 (org-srs-timestamp-time (org-srs-table-field 'timestamp))
                 (org-srs-time-tomorrow))))
-            (org-srs-item-repeat (cl-nth-value 0 (org-srs-item-at-point)) rating))
+            (apply #'org-srs-item-repeat (cl-nth-value 0 (org-srs-item-at-point)) (when rating (list :rating rating))))
         (let ((org-srs-review-rating rating))
           (run-hooks 'org-srs-review-after-rate-hook)))
     (cl-assert args)
