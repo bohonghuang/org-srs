@@ -111,46 +111,46 @@
   :group 'org-srs-review
   :type `(choice . ,org-srs-review-orders))
 
-(cl-defun org-srs-review-due-items (&optional (source (current-buffer)))
+(defun org-srs-review-default-strategy ()
   (cl-flet ((ahead (strategy)
               (if-let ((ahead-time (org-srs-review-learn-ahead-time)))
-                  `(ahead ,strategy ,ahead-time)
+                  `(or ,strategy (ahead ,strategy ,ahead-time))
                 strategy))
             (limit-total-reviews (strategy)
               (if (org-srs-review-new-items-ignore-review-limit-p)
                   strategy
                 `(or (limit ,strategy ,(org-srs-review-max-reviews-per-day)) reviewing))))
-    (let ((org-srs-review-source source))
-      (org-srs-review-strategy-items
-       'todo
-       (or (org-srs-review-strategy)
-           (let ((strategy-new `(subseq
-                                 (or (sort
-                                      (intersection (done new) reviewing)
-                                      ,(org-srs-review-order-review))
-                                     (sort
-                                      (limit new ,(if (org-srs-review-new-items-ignore-review-limit-p)
-                                                      (org-srs-review-new-items-per-day)
-                                                    (min (- (org-srs-review-max-reviews-per-day)
-                                                            (length (org-srs-review-strategy-items 'todo 'old))
-                                                            (length (org-srs-review-strategy-items 'done 'old)))
-                                                         (org-srs-review-new-items-per-day))))
-                                      ,(org-srs-review-order-new)))))
-                 (strategy-review `(subseq
-                                    (sort
-                                     (union
-                                      (intersection (done old) reviewing)
-                                      ,(if (org-srs-review-new-items-ignore-review-limit-p)
-                                           `(limit old ,(org-srs-review-max-reviews-per-day))
-                                         'old))
-                                     ,(org-srs-review-order-review)))))
-             (let ((order (org-srs-review-order-new-review)))
-               (cl-case order
-                 (new-ahead (limit-total-reviews `(or ,(ahead strategy-new) ,(ahead strategy-review))))
-                 (review-ahead (limit-total-reviews `(or ,(ahead strategy-review) ,(ahead strategy-new))))
-                 (new-first (ahead (limit-total-reviews `(or ,strategy-new ,strategy-review))))
-                 (review-first (ahead (limit-total-reviews `(or ,strategy-review ,strategy-new))))
-                 (t (ahead (limit-total-reviews `(sort (union ,strategy-new ,strategy-review) ,order))))))))))))
+    (let ((strategy-new `(subseq
+                          (or (sort
+                               (intersection (done new) reviewing)
+                               ,(org-srs-review-order-review))
+                              (sort
+                               (limit new ,(if (org-srs-review-new-items-ignore-review-limit-p)
+                                               (org-srs-review-new-items-per-day)
+                                             (min (- (org-srs-review-max-reviews-per-day)
+                                                     (length (org-srs-review-strategy-items 'todo 'old))
+                                                     (length (org-srs-review-strategy-items 'done 'old)))
+                                                  (org-srs-review-new-items-per-day))))
+                               ,(org-srs-review-order-new)))))
+          (strategy-review `(subseq
+                             (sort
+                              (union
+                               (intersection (done old) reviewing)
+                               ,(if (org-srs-review-new-items-ignore-review-limit-p)
+                                    `(limit old ,(org-srs-review-max-reviews-per-day))
+                                  'old))
+                              ,(org-srs-review-order-review)))))
+      (let ((order (org-srs-review-order-new-review)))
+        (cl-case order
+          (new-ahead (limit-total-reviews `(or ,(ahead strategy-new) ,(ahead strategy-review))))
+          (review-ahead (limit-total-reviews `(or ,(ahead strategy-review) ,(ahead strategy-new))))
+          (new-first (ahead (limit-total-reviews `(or ,strategy-new ,strategy-review))))
+          (review-first (ahead (limit-total-reviews `(or ,strategy-review ,strategy-new))))
+          (t (ahead (limit-total-reviews `(sort (union ,strategy-new ,strategy-review) ,order)))))))))
+
+(cl-defun org-srs-review-due-items (&optional (source (current-buffer)))
+  (let ((org-srs-review-source source))
+    (org-srs-review-strategy-items 'todo (or (org-srs-review-strategy) (org-srs-review-default-strategy)))))
 
 (defun org-srs-review-sources ()
   (cl-delete
