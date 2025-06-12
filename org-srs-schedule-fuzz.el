@@ -31,6 +31,7 @@
 
 (require 'org-srs-property)
 (require 'org-srs-review)
+(require 'org-srs-review-rate)
 (require 'org-srs-log)
 (require 'org-srs-table)
 (require 'org-srs-time)

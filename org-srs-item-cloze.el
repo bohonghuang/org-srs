@@ -148,7 +148,7 @@
                     do (org-srs-item-add-hook-once
                         'org-srs-item-after-confirm-hook
                         (apply-partially #'\(setf\ org-srs-item-cloze-overlay-text\) (org-srs-item-cloze-answer text) overlay)))
-           (org-srs-item-add-hook-once 'org-srs-review-after-rate-hook #'org-srs-item-cloze-remove-overlays)
+           (org-srs-item-add-hook-once 'org-srs-review-continue-hook #'org-srs-item-cloze-remove-overlays 50)
            (apply (org-srs-item-confirm) type args)))
 
 (defun org-srs-item-cloze-sha1sum-short (content)
