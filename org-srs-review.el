@@ -35,7 +35,6 @@
 (require 'org-srs-query)
 (require 'org-srs-item)
 (require 'org-srs-time)
-(require 'org-srs-review-rate)
 (require 'org-srs-review-strategy)
 
 (defgroup org-srs-review nil
@@ -43,17 +42,24 @@
   :group 'org-srs
   :prefix "org-srs-review-")
 
+(defvar org-srs-review-source)
+
 (defvar org-srs-review-item nil)
 
 (defvar org-srs-reviewing-p)
 
-(defvar org-srs-reviewing-predicates (list (apply-partially #'local-variable-p 'org-srs-review-after-rate-hook)))
+(defvar org-srs-reviewing-predicates (list (apply-partially #'local-variable-p 'org-srs-review-continue-hook)))
 
 (defun org-srs-reviewing-p ()
   (if (boundp 'org-srs-reviewing-p) org-srs-reviewing-p
     (cl-loop for predicate in org-srs-reviewing-predicates thereis (funcall predicate))))
 
-(defvar org-srs-review-source)
+(defun org-srs-review-continue-p ()
+  (and (boundp 'org-srs-review-rating) (or (not (boundp 'org-srs-reviewing-p)) (symbol-value 'org-srs-reviewing-p))))
+
+(defvar org-srs-review-continue-hook nil)
+
+(defvar org-srs-review-finish-hook nil)
 
 (defalias 'org-srs-review-add-hook-once 'org-srs-item-add-hook-once)
 
@@ -148,7 +154,7 @@
           (review-first (ahead (limit-total-reviews `(or ,strategy-review ,strategy-new))))
           (t (ahead (limit-total-reviews `(sort (union ,strategy-new ,strategy-review) ,order)))))))))
 
-(cl-defun org-srs-review-due-items (&optional (source (current-buffer)))
+(cl-defun org-srs-review-due-items (&optional (source (or (bound-and-true-p org-srs-review-source) (current-buffer))))
   (let ((org-srs-review-source source))
     (org-srs-review-strategy-items 'todo (or (org-srs-review-strategy) (org-srs-review-default-strategy)))))
 
@@ -181,11 +187,6 @@
                  (const :tag "No" nil)
                  (const :tag "If scheduled for today" org-srs-time-today-p)))
 
-(defvar org-srs-review-finish-hook nil)
-
-(defun org-srs-review-continue-p ()
-  (and (boundp 'org-srs-review-rating) (or (not (boundp 'org-srs-reviewing-p)) (symbol-value 'org-srs-reviewing-p))))
-
 (defun org-srs-review-source-dwim ()
   (cl-destructuring-bind (&optional (arg 1) &aux (sources (org-srs-review-sources)))
       current-prefix-arg
@@ -199,8 +200,7 @@
   (cl-assert (consp org-srs-review-item))
   (kill-local-variable 'org-srs-review-item)
   (cl-assert (null org-srs-review-item))
-  (kill-local-variable 'org-srs-review-before-rate-hook)
-  (kill-local-variable 'org-srs-review-after-rate-hook))
+  (kill-local-variable 'org-srs-review-continue-hook))
 
 ;;;###autoload
 (cl-defun org-srs-review-start (&optional (source (cdr (cl-first (org-srs-review-sources)))))
@@ -211,23 +211,24 @@ ARG greater than 1, prompt the user to select the scope of items
 to review."
   (interactive (list (org-srs-review-source-dwim)))
   (require 'org-srs)
-  (if-let ((item-args (let ((org-srs-reviewing-p t)) (cl-first (org-srs-review-due-items source)))))
-      (let ((item (cl-first item-args)) (org-srs-reviewing-p t))
-        (apply #'org-srs-item-goto item-args)
-        (cl-assert (not (local-variable-p 'org-srs-review-item)))
-        (cl-assert (null org-srs-review-item))
-        (setq-local org-srs-review-item item-args)
-        (apply #'org-srs-item-review (car item) (cdr item))
-        (org-srs-review-add-hook-once
-         'org-srs-review-after-rate-hook
-         (lambda ()
-           (org-srs-review-end)
-           (when (org-srs-review-continue-p)
-             (org-srs-review-start source)))
-         100))
-    (run-hook-with-args 'org-srs-review-finish-hook source)))
+  (let ((org-srs-review-source source))
+    (if-let ((item-args (let ((org-srs-reviewing-p t)) (cl-first (org-srs-review-due-items)))))
+        (let ((item (cl-first item-args)) (org-srs-reviewing-p t))
+          (apply #'org-srs-item-goto item-args)
+          (cl-assert (not (local-variable-p 'org-srs-review-item)))
+          (cl-assert (null org-srs-review-item))
+          (setq-local org-srs-review-item item-args)
+          (apply #'org-srs-item-review (car item) (cdr item))
+          (org-srs-review-add-hook-once
+           'org-srs-review-continue-hook
+           (lambda ()
+             (org-srs-review-end)
+             (when (org-srs-review-continue-p)
+               (org-srs-review-start source)))
+           100))
+      (let ((org-srs-reviewing-p nil)) (run-hooks 'org-srs-review-finish-hook)))))
 
-(defun org-srs-review-message-review-done (&rest _args)
+(defun org-srs-review-message-review-done ()
   (message "Review done"))
 
 (add-hook 'org-srs-review-finish-hook #'org-srs-review-message-review-done)
@@ -237,11 +238,8 @@ to review."
   "Quit the current review session."
   (interactive)
   (cl-assert (org-srs-reviewing-p))
-  (defvar org-srs-review-rating)
-  (let ((org-srs-reviewing-p (bound-and-true-p org-srs-reviewing-p))
-        (org-srs-review-rating nil))
-    (run-hooks 'org-srs-review-before-rate-hook)
-    (run-hooks 'org-srs-review-after-rate-hook)))
+  (let ((org-srs-reviewing-p (bound-and-true-p org-srs-reviewing-p)))
+    (run-hooks 'org-srs-review-continue-hook)))
 
 (defun org-srs-review-next ()
   (let ((org-srs-reviewing-p t))

@@ -222,9 +222,10 @@
 (defun org-srs-item-narrow ()
   (org-back-to-heading)
   (org-narrow-to-subtree)
-  (org-srs-item-add-hook-once 'org-srs-review-after-rate-hook #'widen))
+  (org-srs-item-add-hook-once 'org-srs-review-continue-hook #'widen))
 
 (defvar org-srs-item-before-confirm-hook nil)
+
 (defvar org-srs-item-after-confirm-hook nil)
 
 (defun org-srs-item-confirm-read-key (&rest _args)
@@ -266,7 +267,7 @@ the current item."
 (defun org-srs-item-confirm-cleanup ()
   (cl-loop (funcall (or (org-srs-item-confirm-pending-p) (cl-return)))))
 
-(add-hook 'org-srs-review-before-rate-hook #'org-srs-item-confirm-cleanup)
+(add-hook 'org-srs-review-continue-hook #'org-srs-item-confirm-cleanup)
 
 (org-srs-property-defcustom org-srs-item-confirm #'org-srs-item-confirm-read-key
   "Method to confirm the current item and reveal its answer."
