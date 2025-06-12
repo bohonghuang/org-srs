@@ -32,6 +32,7 @@
 (require 'org)
 
 (require 'org-srs-review)
+(require 'org-srs-review-rate)
 (require 'org-srs-review-cache)
 (require 'org-srs-log)
 (require 'org-srs-table)

@@ -30,6 +30,7 @@
 
 (require 'org-srs-time)
 (require 'org-srs-item)
+(require 'org-srs-review)
 
 (defgroup org-srs-review-rate nil
   "Rating facilities for Org-srs review items."
@@ -37,12 +38,14 @@
   :prefix "org-srs-review-rat")
 
 (defvar org-srs-review-item)
+
 (defvar org-srs-review-rating)
 
 (cl-eval-when (:compile-toplevel :load-toplevel :execute)
   (defconst org-srs-review-ratings '(:easy :good :hard :again)))
 
 (defvar org-srs-review-before-rate-hook nil)
+
 (defvar org-srs-review-after-rate-hook nil)
 
 (cl-defun org-srs-review-rate (rating &rest args &aux (item (or args org-srs-review-item)))
@@ -58,12 +61,11 @@
                 (org-srs-time-tomorrow))))
             (apply #'org-srs-item-repeat (cl-nth-value 0 (org-srs-item-at-point)) (when rating (list :rating rating))))
         (let ((org-srs-review-rating rating))
-          (run-hooks 'org-srs-review-after-rate-hook)))
+          (run-hooks 'org-srs-review-after-rate-hook)
+          (run-hooks 'org-srs-review-continue-hook)))
     (cl-assert args)
     (let ((org-srs-review-item args))
       (apply #'org-srs-review-rate rating args))))
-
-(declare-function org-srs-reviewing-p "org-srs-review")
 
 (defmacro org-srs-review-define-rating-commands ()
   `(progn . ,(cl-loop for rating in org-srs-review-ratings
@@ -80,6 +82,12 @@
 ;;;###autoload (autoload 'org-srs-review-rate-hard "org-srs-review" "Rate the item being reviewed as hard." t)
 ;;;###autoload (autoload 'org-srs-review-rate-again "org-srs-review" "Rate the item being reviewed as again." t)
 (org-srs-review-define-rating-commands)
+
+(defun org-srs-review-rate-cleanup-hooks ()
+  (kill-local-variable 'org-srs-review-before-rate-hook)
+  (kill-local-variable 'org-srs-review-after-rate-hook))
+
+(add-hook 'org-srs-review-continue-hook #'org-srs-review-rate-cleanup-hooks)
 
 (provide 'org-srs-review-rate)
 ;;; org-srs-review-rate.el ends here

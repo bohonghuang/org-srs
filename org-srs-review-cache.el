@@ -35,6 +35,7 @@
 (require 'org-srs-time)
 (require 'org-srs-item)
 (require 'org-srs-review)
+(require 'org-srs-review-rate)
 (require 'org-srs-property)
 (require 'org-srs-query)
 
@@ -59,8 +60,6 @@
 
 (defun org-srs-review-cache-clear (&rest _args)
   (setf (org-srs-review-cache) nil))
-
-(add-hook 'org-srs-review-finish-hook #'org-srs-review-cache-clear)
 
 (cl-defun org-srs-review-cache-query-predicate-due-time (predicate)
   (pcase predicate
@@ -224,14 +223,20 @@ from a large set of review items."
                      do (push (cons due-time (cons predicate item)) (org-srs-review-cache-pending cache)))))))
 
 (cl-defun org-srs-review-cache-after-rate (&optional (item org-srs-review-item))
-  (defvar org-srs-review-rating)
   (when (org-srs-review-cache-p)
-    (if (org-srs-review-continue-p)
-        (org-srs-item-with-current item
-          (apply #'org-srs-review-cache-updated-item item))
-      (org-srs-review-cache-clear))))
+    (cl-assert (org-srs-review-continue-p))
+    (org-srs-item-with-current item
+      (apply #'org-srs-review-cache-updated-item item))))
 
 (add-hook 'org-srs-review-after-rate-hook #'org-srs-review-cache-after-rate 95)
+
+(cl-defun org-srs-review-cache-cleanup-on-quit ()
+  (when (org-srs-review-cache-p)
+    (unless (org-srs-review-continue-p)
+      (org-srs-review-cache-clear))))
+
+(add-hook 'org-srs-review-continue-hook #'org-srs-review-cache-cleanup-on-quit)
+(add-hook 'org-srs-review-finish-hook #'org-srs-review-cache-cleanup-on-quit)
 
 (define-advice \(setf\ org-srs-item-due-timestamp\) (:after (_ &rest args) org-srs-review-cache)
   (when (org-srs-review-cache-p)
