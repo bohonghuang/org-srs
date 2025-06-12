@@ -48,6 +48,8 @@
       (when-let ((property (org-element-property :attr_srs (org-element-at-point-no-context))))
         (read (concat "(" (cl-reduce (lambda (acc it) (concat acc " " it)) property) ")"))))))
 
+(defvar org-srs-property-use-inheritance 'unspecified)
+
 (defmacro org-srs-property-defcustom (name &rest defcustom-args)
   (declare (doc-string 3) (indent defun))
   (cl-assert (string-prefix-p (symbol-name 'org-srs) (symbol-name name)))
@@ -55,8 +57,9 @@
          (property-name (string-replace "-" "_" (upcase property)))
          (property (string-remove-prefix (symbol-name 'srs-) property))
          (propname (intern (concat ":" property)))
-         (transform (prog1 (cl-getf defcustom-args :transform '#'identity) (cl-remf defcustom-args :transform))))
-    (cl-with-gensyms (value anonymous-variable thunk block)
+         (transform (prog1 (cl-getf defcustom-args :transform '#'identity) (cl-remf defcustom-args :transform)))
+         (inherit (prog1 (cl-getf defcustom-args :inherit 't) (cl-remf defcustom-args :inherit))))
+    (cl-with-gensyms (value anonymous-variable thunk block use-inheritance)
       `(progn
          (defcustom ,name . ,defcustom-args)
          (put ',name 'safe-local-variable #'always)
@@ -75,7 +78,13 @@
                   (let* ((,value (cl-getf (org-srs-property-plist-at-point) ,propname ',anonymous-variable)))
                     (unless (eq ,value ',anonymous-variable)
                       (cl-return-from ,block ,value)))
-                  (when-let ((,value (org-entry-get nil ,property-name t t)))
+                  (when-let ((,value (org-entry-get
+                                      nil ,property-name
+                                      (let ((,use-inheritance org-srs-property-use-inheritance))
+                                        (cl-etypecase ,use-inheritance
+                                          ((eql unspecified) ,inherit)
+                                          (boolean ,use-inheritance)))
+                                      t)))
                     (cl-return-from ,block (read ,value))))
                 ,name))))))))
 
