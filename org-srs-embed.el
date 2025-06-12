@@ -46,24 +46,41 @@
   :group 'org-srs
   :prefix "org-srs-embed-")
 
-(cl-declaim (special org-srs-embed-overlay-mode))
+(defvar org-srs-embed-overlay-mode)
+
+(defvar org-srs-embed-cloze-tag "srs")
+
+(defvar org-srs-embed-cloze-brackets '(?{ ?}))
+
+(defvar org-srs-embed-cloze-overlay-category 'org-srs-embed-cloze)
 
 (cl-defun org-srs-embed-put-cloze-overlays (&optional (start (point-min)) (end (point-max)))
-  (cl-assert org-srs-embed-overlay-mode)
   (save-excursion
-    (cl-loop initially (goto-char start)
-             for () = (or (re-search-forward (rx "@@srs:" (group (+? anychar)) "@@") end t) (cl-return))
+    (cl-loop with ({ }) = (mapcar #'char-to-string org-srs-embed-cloze-brackets)
+             initially (goto-char start)
+             for () = (or (re-search-forward
+                           (rx "@@" (literal org-srs-embed-cloze-tag) ":"
+                               (group (+? anychar)) "@@")
+                           end t)
+                          (cl-return))
              for overlay = (make-overlay (match-beginning 0) (match-end 0) nil 'front-advance)
-             for string = (match-string 1)
+             for string = (replace-regexp-in-string
+                           (rx (literal {) (group (literal {) (+? anychar) (literal })) (literal {))
+                           "" (match-string 1) t t 1)
              for padding = (- (string-width (match-string 0)) (string-width (match-string 1)))
-             for openp = (cl-plusp (cl-loop for char across string sum (cl-case char (?{ 1) (?} -1) (t 0))))
+             for openp = (cl-plusp (cl-loop for char across string
+                                            sum (cl-loop for bracket in org-srs-embed-cloze-brackets
+                                                         for number downfrom 1 by 2
+                                                         when (= bracket char)
+                                                         return number
+                                                         finally (cl-return 0))))
              do
-             (overlay-put overlay 'category 'org-srs-embed-cloze)
+             (overlay-put overlay 'category org-srs-embed-cloze-overlay-category)
              (overlay-put overlay 'invisible nil)
              (overlay-put overlay 'display (if (org-at-table-p) (string-pad string (+ (length string) padding) nil openp) string)))))
 
 (cl-defun org-srs-embed-remove-cloze-overlays (&optional (start (point-min)) (end (point-max)))
-  (remove-overlays start end 'category 'org-srs-embed-cloze))
+  (remove-overlays start end 'category org-srs-embed-cloze-overlay-category))
 
 (cl-defun org-srs-embed-put-meta-overlays (&optional (start (point-min)) (end (point-max)))
   (cl-assert org-srs-embed-overlay-mode)
@@ -107,12 +124,15 @@
   (cl-assert (eq major-mode 'org-mode))
   (if org-srs-embed-overlay-mode (org-srs-embed-put-overlays) (org-srs-embed-remove-overlays)))
 
-(defun org-srs-embed-cloze (start end &optional hint)
-  (save-excursion
-    (goto-char end)
-    (if hint (insert "@@srs:}{" hint "}}@@") (insert "@@srs:}}@@"))
-    (goto-char start)
-    (insert "@@srs:{{@@")))
+(defun org-srs-embed-cloze (start end &optional hint id)
+  (cl-destructuring-bind ({ } &aux (tag org-srs-embed-cloze-tag))
+      (mapcar #'char-to-string org-srs-embed-cloze-brackets)
+    (save-excursion
+      (goto-char end)
+      (if hint (insert "@@" tag ":" } { hint } } "@@")
+        (insert "@@" tag ":" } } "@@"))
+      (goto-char start)
+      (if id (insert "@@" tag ":" { { id } { "@@") (insert "@@" tag ":" { { "@@")))))
 
 ;;;###autoload
 (cl-defun org-srs-embed-cloze-dwim ()
@@ -132,18 +152,19 @@
 (cl-defun org-srs-embed-process-clozes (&optional (start (point-min)) (end (point-max)) (process-function #'cl-values))
   (save-excursion
     (cl-loop with start = (copy-marker start) and end = (copy-marker end)
+             with ({ }) = org-srs-embed-cloze-brackets
              with regexp = (rx "@@srs:" (group (+? anychar)) "@@")
              initially (goto-char start)
              for cloze-start = (if (not (re-search-forward regexp end t))
                                    (cl-return count)
-                                 (cl-assert (string-equal (match-string 1) "{{"))
+                                 (cl-assert (string-equal (match-string 1) (string { {)))
                                  (prog1 (save-excursion
                                           (goto-char (match-end 0))
                                           (point-marker))
                                    (replace-match "\\1")))
              for cloze-end = (if (not (re-search-forward regexp end t))
                                  (cl-assert nil)
-                               (cl-assert (string-suffix-p "}}" (match-string 1)))
+                               (cl-assert (string-suffix-p (string } }) (match-string 1)))
                                (prog1 (save-excursion
                                         (goto-char (match-beginning 0))
                                         (point-marker))
@@ -152,25 +173,33 @@
              for cloze = (string-trim (buffer-substring cloze-start cloze-end))
              do (funcall process-function cloze))))
 
-(cl-defun org-srs-embed-cloze-bounds (&optional (position (point)))
-  (save-excursion
-    (goto-char position)
-    (let ((regexp-left (rx "@@srs:{{")) (regexp-right (rx "}}@@")))
-      (let ((bl (or (and (save-excursion (re-search-backward regexp-left (pos-bol) t)) (match-beginning 0)) (pos-bol)))
-            (br (or (and (save-excursion (re-search-backward regexp-right (pos-bol) t)) (match-end 0)) (pos-bol)))
-            (fl (or (and (save-excursion (re-search-forward regexp-left (pos-eol) t)) (match-beginning 0)) (pos-eol)))
-            (fr (or (and (save-excursion (re-search-forward regexp-right (pos-eol) t)) (match-end 0)) (pos-eol))))
-        (if (< (1- br) bl (point) fr (1+ fl)) (cons bl fr)
-          (when (< (1- (point)) fl fr) (cons fl fr)))))))
+(cl-defun org-srs-embed-cloze-bounds (&optional (position (point)) start end)
+  (cl-destructuring-bind ({ } &aux (tag org-srs-embed-cloze-tag))
+      (mapcar #'char-to-string org-srs-embed-cloze-brackets)
+    (save-excursion
+      (goto-char position)
+      (let ((regexp-left (rx "@@" (literal tag) ":" (literal {) (literal {)))
+            (regexp-right (rx (literal }) (literal }) "@@"))
+            (start (or start (pos-bol))) (end (or end (pos-eol))))
+        (let ((bl (or (and (save-excursion (re-search-backward regexp-left start t)) (match-beginning 0)) start))
+              (br (or (and (save-excursion (re-search-backward regexp-right start t)) (match-end 0)) start))
+              (fl (or (and (save-excursion (re-search-forward regexp-left end t)) (match-beginning 0)) end))
+              (fr (or (and (save-excursion (re-search-forward regexp-right end t)) (match-end 0)) end)))
+          (if (< (1- br) bl (point) fr (1+ fl)) (cons bl fr)
+            (when (< (1- (point)) fl fr) (cons fl fr))))))))
 
 (defun org-srs-embed-uncloze (start end)
   (let ((start (copy-marker start)) (end (copy-marker end)))
-    (prog1 (org-srs-embed-process-clozes
-            start end
-            (lambda (cloze)
-              (cl-assert (looking-back (rx "{{" (literal cloze) "}" (*? anychar) "}") (pos-bol)))
-              (replace-match cloze)))
-      (org-srs-embed-update-overlays start end))))
+    (cl-destructuring-bind ({ }) (mapcar #'char-to-string org-srs-embed-cloze-brackets)
+      (prog1 (org-srs-embed-process-clozes
+              start end
+              (lambda (cloze)
+                (cl-assert
+                 (looking-back
+                  (rx (literal {) (literal {) (literal cloze) (literal }) (*? anychar) (literal }))
+                  (pos-bol)))
+                (replace-match cloze)))
+        (org-srs-embed-update-overlays start end)))))
 
 (cl-defmethod org-srs-item-uncloze-interactively
   (type &context ((region-active-p) (eql nil)) (org-srs-item-uncloze-function (eql #'org-srs-embed-uncloze)) &optional props)
