@@ -41,12 +41,25 @@
   :prefix "org-srs-"
   :link '(url-link "https://github.com/bohonghuang/org-srs"))
 
-(defun org-srs-property-plist-at-point ()
+(cl-defun org-srs-property-plist (&optional (position (point)))
   (ignore-error error
     (save-excursion
+      (goto-char position)
       (goto-char (org-srs-table-element-begin))
       (when-let ((property (org-element-property :attr_srs (org-element-at-point-no-context))))
         (read (concat "(" (cl-reduce (lambda (acc it) (concat acc " " it)) property) ")"))))))
+
+(cl-defun \(setf\ org-srs-property-plist\) (value &optional (position (point)))
+  (save-excursion
+    (let ((header "#+ATTR_SRS: "))
+      (goto-char position)
+      (goto-char (org-srs-table-element-begin))
+      (if (re-search-forward (rx bol (* blank) (literal header)) (org-srs-table-element-end) t)
+          (delete-region (line-beginning-position) (line-end-position))
+        (goto-char (org-srs-table-begin))
+        (open-line 1))
+      (insert header)
+      (insert (string-remove-suffix ")" (string-remove-prefix "(" (prin1-to-string value)))))))
 
 (defvar org-srs-property-use-inheritance 'unspecified)
 
@@ -75,7 +88,7 @@
                 (when (boundp ',anonymous-variable)
                   (cl-return-from ,block (symbol-value ',anonymous-variable)))
                 (when (eq major-mode 'org-mode)
-                  (let* ((,value (cl-getf (org-srs-property-plist-at-point) ,propname ',anonymous-variable)))
+                  (let* ((,value (cl-getf (org-srs-property-plist) ,propname ',anonymous-variable)))
                     (unless (eq ,value ',anonymous-variable)
                       (cl-return-from ,block ,value)))
                   (when-let ((,value (org-entry-get
