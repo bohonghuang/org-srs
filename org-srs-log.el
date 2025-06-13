@@ -89,17 +89,17 @@
 
 (defun org-srs-log-end-of-drawer ()
   (save-restriction
-    (org-narrow-to-subtree)
     (org-back-to-heading)
-    (let ((heading-start (point))
+    (let ((entry-start (point))
+          (entry-end (org-entry-end-position))
           (drawer-start-regexp (rx bol (* blank) ":" (literal org-srs-log-drawer-name) ":" (* blank) eol))
           (drawer-end-regexp (rx bol (* blank) ":END:" (* blank) eol)))
-      (if (re-search-forward drawer-start-regexp nil t)
+      (if (re-search-forward drawer-start-regexp entry-end t)
           (progn
             (goto-char (org-element-end (org-element-at-point)))
-            (re-search-backward drawer-end-regexp))
+            (re-search-backward drawer-end-regexp entry-start))
         (org-end-of-meta-data t)
-        (unless (re-search-backward drawer-end-regexp heading-start t)
+        (unless (re-search-backward drawer-end-regexp entry-start t)
           (org-back-to-heading))
         (end-of-line)
         (newline-and-indent)
