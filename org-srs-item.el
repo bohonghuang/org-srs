@@ -119,25 +119,25 @@
                        while (listp rest))))))
 
 (defun org-srs-item-due-timestamp-1 ()
-  (goto-char (org-srs-table-begin))
-  (re-search-forward org-srs-log-latest-timestamp-regexp (org-srs-table-end))
-  (match-string-no-properties 2))
+  (save-excursion
+    (goto-char (org-srs-table-begin))
+    (re-search-forward org-srs-log-latest-timestamp-regexp (org-srs-table-end) t)
+    (match-string-no-properties 2)))
 
 (defun org-srs-item-due-timestamp (&rest args)
   (if args
       (org-srs-item-with-current args
-        (org-srs-item-due-timestamp-1))
+        (org-srs-item-due-timestamp))
     (save-excursion
       (org-srs-item-due-timestamp-1))))
 
 (defun \(setf\ org-srs-item-due-timestamp\) (value &rest args)
   (if args
       (org-srs-item-with-current args
-        (org-srs-item-due-timestamp-1)
-        (replace-match value t t nil 2))
-    (save-excursion
-      (org-srs-item-due-timestamp-1)
-      (replace-match value t t nil 2))))
+        (setf (org-srs-item-due-timestamp) value))
+    (if (org-srs-item-due-timestamp-1)
+        (replace-match value t t nil 2)
+      (setf (org-srs-table-field 'timestamp) value))))
 
 (defun org-srs-item-due-time (&rest args)
   (org-srs-timestamp-time (apply #'org-srs-item-due-timestamp args)))
