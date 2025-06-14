@@ -61,13 +61,15 @@
                   (timestamp args)
                   (timestampp (cl-remf args :timestamp) args)
                   (t (cl-list* :timestamp (org-srs-timestamp-now) args)))
-            args (org-srs-log-plist-alist args)
-            args (mapc (lambda (cons) (setf (car cons) (intern (string-trim-left (symbol-name (car cons)) ":")))) args)
+            args (mapc (lambda (cons) (setf (car cons) (intern (string-trim-left (symbol-name (car cons)) ":"))))
+                       (org-srs-log-plist-alist args))
             args (nconc args '(t))
             args (cl-loop for arg in args
                           if (consp arg)
-                          do (setf (org-srs-table-field (car arg)) (prin1-to-string (cdr arg) t))
-                          and collect arg
+                          collect arg
+                          and nconc (when-let ((field (org-srs-table-ensure-read-field (org-srs-table-field (car arg)))))
+                                      (list (cons (car arg) field)))
+                          and do (setf (org-srs-table-field (car arg)) (prin1-to-string (cdr arg) t))
                           else if (eq arg t)
                           nconc (save-excursion
                                   (forward-line -1)

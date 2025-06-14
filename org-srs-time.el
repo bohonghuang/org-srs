@@ -135,6 +135,9 @@
 (defun org-srs-timestamp-min (&rest args)
   (cl-reduce (lambda (time-a time-b) (if (org-srs-timestamp> time-a time-b) time-b time-a)) args))
 
+(defun org-srs-timestamp-max (&rest args)
+  (cl-reduce (lambda (time-a time-b) (if (org-srs-timestamp> time-a time-b) time-a time-b)) args))
+
 (defconst org-srs-timestamp-date-regexp (rx (= 4 digit) "-" (= 2 digit) "-" (= 2 digit)))
 (defconst org-srs-timestamp-time-regexp (rx (= 2 digit) ":" (= 2 digit) ":" (= 2 digit)))
 (defconst org-srs-timestamp-regexp (rx (regexp org-srs-timestamp-date-regexp) "T" (regexp org-srs-timestamp-time-regexp) "Z"))
