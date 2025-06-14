@@ -93,7 +93,10 @@
                with width = (window-pixel-width (minibuffer-window))
                and height = (with-minibuffer-selected-window (line-pixel-height))
                with label-width = (/ width 4)
-               for (rating interval) on (org-srs-item-with-current item (org-srs-stats-intervals))
+               for (rating interval) on (org-srs-item-with-current item
+                                          (if (org-srs-table-goto-column 'rating)
+                                              (org-srs-stats-intervals)
+                                            (cl-return)))
                by #'cddr
                concat (propertize
                        (org-srs-mouse-string-pad-pixel
