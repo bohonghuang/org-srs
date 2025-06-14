@@ -58,8 +58,10 @@
 (defconst org-srs-table-readable-field-regexp (rx bos (or (and ":" (+ anychar)) (and (? "-") (+ digit) (? "." (* digit)) (? "e" (? "-") (+ digit)))) eos))
 
 (defun org-srs-table-ensure-read-field (field)
-  (if (string-match-p org-srs-table-readable-field-regexp field)
-      (car (read-from-string field)) (org-no-properties field)))
+  (cond
+   ((string-empty-p field) nil)
+   ((string-match-p org-srs-table-readable-field-regexp field) (car (read-from-string field)))
+   (t (org-no-properties field))))
 
 (defun org-srs-table-lines ()
   (cl-loop with names = (mapcar #'car (org-srs-table-column-name-number-alist))
