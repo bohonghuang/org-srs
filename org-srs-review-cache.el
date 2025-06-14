@@ -224,16 +224,14 @@ from a large set of review items."
 
 (cl-defun org-srs-review-cache-after-rate (&optional (item org-srs-review-item))
   (when (org-srs-review-cache-p)
-    (cl-assert (org-srs-review-continue-p))
     (org-srs-item-with-current item
       (apply #'org-srs-review-cache-updated-item item))))
 
 (add-hook 'org-srs-review-after-rate-hook #'org-srs-review-cache-after-rate 95)
 
 (cl-defun org-srs-review-cache-cleanup-on-quit ()
-  (when (org-srs-review-cache-p)
-    (unless (org-srs-review-continue-p)
-      (org-srs-review-cache-clear))))
+  (when (and (org-srs-review-cache-p) (not (org-srs-reviewing-p)))
+    (org-srs-review-cache-clear)))
 
 (add-hook 'org-srs-review-continue-hook #'org-srs-review-cache-cleanup-on-quit)
 (add-hook 'org-srs-review-finish-hook #'org-srs-review-cache-cleanup-on-quit)

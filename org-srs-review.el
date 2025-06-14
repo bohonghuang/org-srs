@@ -54,9 +54,6 @@
   (if (boundp 'org-srs-reviewing-p) org-srs-reviewing-p
     (cl-loop for predicate in org-srs-reviewing-predicates thereis (funcall predicate))))
 
-(defun org-srs-review-continue-p ()
-  (and (boundp 'org-srs-review-rating) (or (not (boundp 'org-srs-reviewing-p)) (symbol-value 'org-srs-reviewing-p))))
-
 (defvar org-srs-review-continue-hook nil)
 
 (defvar org-srs-review-finish-hook nil)
@@ -223,7 +220,7 @@ to review."
            'org-srs-review-continue-hook
            (lambda ()
              (org-srs-review-end)
-             (when (org-srs-review-continue-p)
+             (when (org-srs-reviewing-p)
                (org-srs-review-start source)))
            100))
       (let ((org-srs-reviewing-p nil)) (run-hooks 'org-srs-review-finish-hook)))))
