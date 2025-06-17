@@ -53,7 +53,7 @@
                          (org-split-string (match-string-no-properties 1) " *| *"))
            for column from 2
            when (string-match-p "\\`[a-zA-Z][_a-zA-Z0-9]*\\'" name)
-           collect (cons (intern name) column)))
+           collect (cons (intern (cl-substitute ?- ?_ name)) column)))
 
 (defconst org-srs-table-readable-field-regexp (rx bos (or (and ":" (+ anychar)) (and (? "-") (+ digit) (? "." (* digit)) (? "e" (? "-") (+ digit)))) eos))
 
@@ -139,7 +139,7 @@
 (defun org-srs-table-from-alist (alist)
   (cl-loop initially (insert "| ! |")
            for (name . nil) in alist
-           do (insert (prin1-to-string name t) " | "))
+           do (insert (cl-substitute ?_ ?- (prin1-to-string name t)) " | "))
   (newline)
   (insert "|-")
   (newline)
