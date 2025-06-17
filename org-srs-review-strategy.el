@@ -86,6 +86,14 @@
 (cl-defmethod org-srs-review-strategy-items ((type (eql 'done)) (_strategy (eql 'or)) &rest strategies)
   (apply #'org-srs-review-strategy-items type 'union strategies))
 
+(cl-defmethod org-srs-review-strategy-items ((_type (eql 'todo)) (_strategy (eql 'due)) &rest _args)
+  (org-srs-query `(and ,org-srs-review-strategy-due-predicate (not reviewed) (not suspended)) org-srs-review-source))
+
+(cl-defmethod org-srs-review-strategy-items ((_type (eql 'done)) (strategy (eql 'due)) &rest args)
+  (org-srs-review-strategy-difference
+   (org-srs-query 'reviewed org-srs-review-source)
+   (apply #'org-srs-review-strategy-items 'todo strategy args)))
+
 (cl-defmethod org-srs-review-strategy-items ((_type (eql 'todo)) (_strategy (eql 'new)) &rest _args)
   (org-srs-query `(and ,org-srs-review-strategy-due-predicate new (not suspended)) org-srs-review-source))
 
