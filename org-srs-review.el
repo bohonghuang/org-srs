@@ -252,7 +252,11 @@ ARGS specifies the item to postpone. If ARGS is nil, the current item is used."
   (org-srs-item-with-current args
     (setf (org-srs-item-due-timestamp) (cl-etypecase time
                                          (org-srs-timestamp time)
-                                         (list (apply #'org-srs-timestamp+ (org-srs-item-due-timestamp) time)))))
+                                         (list (apply #'org-srs-timestamp+
+                                                      (org-srs-timestamp-max
+                                                       (org-srs-item-due-timestamp)
+                                                       (org-srs-timestamp-now))
+                                                      time)))))
   (org-srs-review-next))
 
 (provide 'org-srs-review)
