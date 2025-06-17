@@ -200,8 +200,8 @@ from a large set of review items."
     (apply fun args)))
 
 (cl-defun org-srs-review-cache-updated-item (&rest args)
-  (let ((cache (org-srs-review-cache))
-        (item (apply #'org-srs-review-cache-item (or args (cl-multiple-value-list (org-srs-item-at-point))))))
+  (when-let ((cache (org-srs-review-cache))
+             (item (apply #'org-srs-review-cache-item (or args (cl-multiple-value-list (org-srs-item-at-point))))))
     (setf (org-srs-review-cache-pending cache)
           (cl-delete item (org-srs-review-cache-pending cache) :key #'cddr :test #'equal)
           (org-srs-review-cache-queries cache)
@@ -224,8 +224,7 @@ from a large set of review items."
 
 (cl-defun org-srs-review-cache-after-rate (&optional (item org-srs-review-item))
   (when (org-srs-review-cache-p)
-    (org-srs-item-with-current item
-      (apply #'org-srs-review-cache-updated-item item))))
+    (apply #'org-srs-review-cache-updated-item item)))
 
 (add-hook 'org-srs-review-after-rate-hook #'org-srs-review-cache-after-rate 95)
 
