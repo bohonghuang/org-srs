@@ -38,14 +38,10 @@
   :group 'org-srs
   :prefix "org-srs-query-")
 
-(cl-defgeneric org-srs-query-ensure-predicate (object &rest args)
+(cl-defgeneric org-srs-query-predicate (object &rest args)
+  (:method ((list list) &rest args) (cl-assert (null args)) (apply #'org-srs-query-predicate list))
   (:method ((name symbol) &rest args) (apply (intern (format "%s-%s" 'org-srs-query-predicate name)) args))
-  (:method ((fun function) &rest args) (if args (lambda () (apply fun args)) fun)))
-
-(defun org-srs-query-predicate (desc)
-  (cl-typecase desc
-    (function desc)
-    (t (apply #'org-srs-query-ensure-predicate (ensure-list desc)))))
+  (:method ((predicate function) &rest args) (if args (lambda () (apply predicate args)) predicate)))
 
 (defun org-srs-query-item-p (predicate &rest item)
   (let ((predicate (org-srs-query-predicate predicate)))
@@ -54,19 +50,19 @@
 (defun org-srs-query-predicate-and (&rest predicates)
   (lambda () (cl-loop for predicate in predicates always (funcall predicate))))
 
-(cl-defmethod org-srs-query-ensure-predicate ((_name (eql 'and)) &rest args)
+(cl-defmethod org-srs-query-predicate ((_name (eql 'and)) &rest args)
   (apply #'org-srs-query-predicate-and (mapcar #'org-srs-query-predicate args)))
 
 (defun org-srs-query-predicate-or (&rest predicates)
   (lambda () (cl-loop for predicate in predicates thereis (funcall predicate))))
 
-(cl-defmethod org-srs-query-ensure-predicate ((_name (eql 'or)) &rest args)
+(cl-defmethod org-srs-query-predicate ((_name (eql 'or)) &rest args)
   (apply #'org-srs-query-predicate-or (mapcar #'org-srs-query-predicate args)))
 
 (defun org-srs-query-predicate-not (predicate)
   (lambda () (not (funcall predicate))))
 
-(cl-defmethod org-srs-query-ensure-predicate ((_name (eql 'not)) &rest args)
+(cl-defmethod org-srs-query-predicate ((_name (eql 'not)) &rest args)
   (cl-destructuring-bind (predicate) args
     (org-srs-query-predicate-not (org-srs-query-predicate predicate))))
 
