@@ -218,10 +218,12 @@ to review."
           (apply #'org-srs-item-review (car item) (cdr item))
           (org-srs-review-add-hook-once
            'org-srs-review-continue-hook
-           (lambda ()
-             (org-srs-review-end)
-             (when (org-srs-reviewing-p)
-               (org-srs-review-start source)))
+           (org-srs-property-thunk-with-saved-properties
+            (lambda ()
+              (org-srs-review-end)
+              (when (org-srs-reviewing-p)
+                (org-srs-review-start source)))
+            'org-srs-review)
            100))
       (let ((org-srs-reviewing-p nil)) (run-hooks 'org-srs-review-finish-hook)))))
 

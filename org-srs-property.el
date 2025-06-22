@@ -110,17 +110,16 @@
            else
            do (cl-assert nil)))
 
-(cl-defun org-srs-property-call-with-saved-properties (thunk &optional (properties (org-srs-property-group-members)))
-  (cl-destructuring-bind (property . properties) properties
-    (funcall
-     property (funcall property #'identity)
-     (if properties (apply-partially #'org-srs-property-call-with-saved-properties thunk properties) thunk))))
-
-(cl-define-compiler-macro org-srs-property-call-with-saved-properties (&whole form thunk &optional properties)
-  (pcase properties
-    (`'(,property) `(org-srs-property-let ((,property (,property #'identity))) (funcall ,thunk)))
-    (`'() `(funcall ,thunk))
-    (_ form)))
+(cl-defun org-srs-property-thunk-with-saved-properties (thunk &optional (properties (org-srs-property-group-members)))
+  (defvar org-srs-property-thunk-args)
+  (let ((thunk (cl-reduce
+                (lambda (thunk property)
+                  (apply-partially property (funcall property #'identity) thunk))
+                (cl-etypecase properties
+                  (list properties)
+                  (symbol (org-srs-property-group-members properties)))
+                :initial-value (lambda () (apply thunk org-srs-property-thunk-args)))))
+    (lambda (&rest args) (let ((org-srs-property-thunk-args args)) (funcall thunk)))))
 
 (defmacro org-srs-property-let (bindings &rest body)
   (declare (indent 1))
@@ -129,9 +128,9 @@
      `(,var ,val (lambda () (org-srs-property-let ,rest . ,body))))
     (`() `(progn . ,body))
     (`(,(and (pred symbolp) var) . ,rest)
-     `(org-srs-property-call-with-saved-properties (lambda () (org-srs-property-let ,rest . ,body)) '(,var)))
+     `(funcall (org-srs-property-thunk-with-saved-properties (lambda () (org-srs-property-let ,rest . ,body)) '(,var))))
     ((and (pred symbolp) (or (and 't (let group 'org-srs)) group))
-     `(org-srs-property-call-with-saved-properties (lambda () . ,body) (org-srs-property-group-members ',group)))))
+     `(funcall (org-srs-property-thunk-with-saved-properties (lambda () . ,body) (org-srs-property-group-members ',group))))))
 
 (provide 'org-srs-property)
 ;;; org-srs-property.el ends here
