@@ -258,7 +258,7 @@ from a large set of review items."
      (defvar org-srs-query-predicate@org-srs-review-cache)
      (let ((org-srs-query-predicate@org-srs-review-cache t)) . ,body)))
 
-(define-advice org-srs-review-cache-after-rate (:around (fun &rest args) org-srs-query-predicate@org-srs-review-cache)
+(define-advice org-srs-review-cache-updated-item (:around (fun &rest args) org-srs-query-predicate@org-srs-review-cache)
   (org-srs-review-cache-without-query-predicate (apply fun args)))
 
 (define-advice org-srs-query (:around (fun &rest args) org-srs-query-predicate@org-srs-review-cache)
