@@ -112,35 +112,44 @@
 (defun org-srs-query-predicate-suspended ()
   #'org-in-commented-heading-p)
 
+(gv-define-expander cl-values
+  (lambda (do &rest args)
+    (funcall
+     do `(cl-values . ,args)
+     (lambda (values)
+       (let ((vars (mapcar #'gensym args)))
+         `(cl-destructuring-bind ,vars ,values
+            (setf . ,(cl-mapcan #'list args vars))))))))
+
 (defmacro org-srs-query-cl-loop (&rest args)
   (declare (indent 0))
-  (let ((cl-loop (list 'cl-loop))
-        (end nil))
+  (let ((cl-loop (list 'cl-loop)) (end nil))
     (cl-symbol-macrolet ((start (cdr cl-loop)))
-      (append
-       cl-loop
-       (cl-loop for (collect val into var) = args
-                while args
-                if (eq collect 'collect)
-                if (eq into 'into)
-                append (let ((clause `(with ,var = nil)))
-                         (unless (cl-search clause start)
-                           (setf start (append start `(with ,var = nil))))
-                         `(do (push ,val ,var)))
-                and do (setf args (cddddr args))
-                else
-                append (cl-with-gensyms (var)
-                         (let ((clause `(with ,var = nil)))
-                           (unless (cl-search clause start)
-                             (setf start (append start `(with ,var = nil)))))
-                         (cl-assert (null end))
-                         (setf end `(finally (cl-return ,var)))
-                         `(do (push ,val ,var)))
-                and do (setf args (cddr args))
-                else
-                collect collect
-                and do (setf args (cdr args)))
-       end))))
+      (cl-with-gensyms (default-var default-cons)
+        (append
+         cl-loop
+         (cl-loop with cons
+                  for (collect val into var) = args
+                  for has-finally = (or has-finally (eq collect 'finally))
+                  if (eq collect 'collect)
+                  do (setf (cl-values var cons end args)
+                           (cl-case into
+                             (into (cl-values var (intern (format "%s--%s" var 'cons)) end (cddddr args)))
+                             (t (cl-values
+                                 default-var default-cons
+                                 (let ((clause `(cl-return ,default-var)))
+                                   (if (cl-find clause end :test #'equal) end (append end (list clause))))
+                                 (cddr args))))
+                           start (let ((clause `(with ,var = nil and ,cons = nil)))
+                                   (if (cl-search clause start) start (append start clause))))
+                  and append `(do (setf ,cons ,(cl-once-only (val) `(if ,cons (setf (cdr ,cons) (list ,val)) (setf ,var (list ,val))))))
+                  else
+                  do (setf args (cdr args))
+                  and collect collect
+                  unless args unless has-finally
+                  do (setf args '(finally (progn)) has-finally t)
+                  while args)
+         end)))))
 
 (defmacro org-srs-query-with-loop (&rest body)
   (declare (indent 0))
