@@ -151,21 +151,34 @@
            (org-srs-item-add-hook-once 'org-srs-review-continue-hook #'org-srs-item-cloze-remove-overlays 50)
            (apply (org-srs-item-confirm) type args)))
 
-(defun org-srs-item-cloze-sha1sum-short (content)
-  (intern (substring (sha1 content) 0 7)))
+(defun org-srs-item-cloze-identifier-sha1sum-short (content)
+  (intern (substring-no-properties (sha1 content) 0 7)))
 
-(org-srs-property-defcustom org-srs-item-cloze-identifier #'org-srs-item-cloze-sha1sum-short
+(defun org-srs-item-cloze-identifier-number-sequence (&optional _content)
+  (cl-loop with (before . after) = (or (org-srs-item-cloze-bounds) (cons (point) (point)))
+           for expected from 1
+           for (actual) in (cl-sort
+                            (nconc (org-srs-item-cloze-collect (org-entry-beginning-position) before)
+                                   (org-srs-item-cloze-collect after (org-entry-end-position)))
+                            #'< :key #'car)
+           while (= actual expected)
+           finally (cl-return expected)))
+
+(org-srs-property-defcustom org-srs-item-cloze-identifier #'org-srs-item-cloze-identifier-sha1sum-short
   "Identifier type used to distinguish cloze deletions."
   :group 'org-srs-item-cloze
   :type 'function)
 
 (defun org-srs-item-cloze-default (start end &optional hint)
-  (let ((identifier (funcall (org-srs-item-cloze-identifier) (buffer-substring start end))))
-    (save-excursion
-      (goto-char end)
-      (if hint (insert "}{" hint "}}") (insert "}}"))
-      (goto-char start)
-      (insert "{{" (org-srs-item-princ-to-string identifier) "}{"))))
+  (save-excursion
+    (goto-char end)
+    (if hint (insert "}{" hint "}}") (insert "}}"))
+    (goto-char start)
+    (insert
+     "{{"
+     (org-srs-item-princ-to-string
+      (funcall (org-srs-item-cloze-identifier) (buffer-substring start end)))
+     "}{")))
 
 (defvar org-srs-item-cloze-hint nil)
 
