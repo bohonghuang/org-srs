@@ -261,5 +261,13 @@ ARGS specifies the item to postpone. If ARGS is nil, the current item is used."
                                                       time)))))
   (org-srs-review-next))
 
+;;;###autoload
+(defun org-srs-review-suspend ()
+  "Suspend the current review item."
+  (interactive)
+  (cl-assert (not (org-in-commented-heading-p)))
+  (org-toggle-comment)
+  (org-srs-review-next))
+
 (provide 'org-srs-review)
 ;;; org-srs-review.el ends here

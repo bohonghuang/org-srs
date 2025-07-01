@@ -236,6 +236,13 @@ from a large set of review items."
   (when (org-srs-review-cache-p)
     (apply #'org-srs-review-cache-updated-item args)))
 
+(define-advice org-toggle-comment (:after (&rest _args) org-srs-review-cache)
+  (when (org-srs-review-cache-active-p)
+    (mapc
+     (apply-partially #'apply #'org-srs-review-cache-updated-item)
+     (org-srs-property-let ((org-srs-review-cache-p nil))
+       (org-srs-query '(and) (cons (org-entry-beginning-position) (org-entry-end-position)))))))
+
 (define-advice org-srs-query-predicate (:around (fun &rest args) org-srs-review-cache)
   (if (and (org-srs-review-cache-active-p) (not (bound-and-true-p org-srs-query-predicate@org-srs-review-cache)))
       (cl-destructuring-bind (desc) args
