@@ -213,11 +213,9 @@
      (org-id-get-create))))
 
 (cl-defun org-srs-item-add-hook-once (hook function &optional depth (local t))
-  (add-hook
-   hook
-   (letrec ((hook-function (lambda () (remove-hook hook hook-function local) (funcall function))))
-     hook-function)
-   depth local))
+  (letrec ((hook-function (lambda () (remove-hook hook hook-function local) (funcall function))))
+    (add-hook hook hook-function depth local)
+    hook-function))
 
 (defun org-srs-item-narrow ()
   (org-back-to-heading)
