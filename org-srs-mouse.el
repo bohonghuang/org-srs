@@ -49,27 +49,33 @@
 
 (cl-defun org-srs-mouse-bottom-panel-show (labels
                                            &key
-                                           (faces (make-list (length labels) 'default))
+                                           (faces (cl-subst-if 'default (lambda (elem) (and elem (symbolp elem))) labels))
                                            (callback #'ignore))
-  (let* ((child-frame (org-srs-child-frame 'org-srs-mouse-bottom-panel))
-         (button-width (- (/ (frame-pixel-width child-frame) (float (length labels))) (* (string-pixel-width "​") 2)))
-         (button-height (frame-pixel-height child-frame))
+  (cl-assert labels) (cl-assert faces)
+  (let* ((labels-list (if (cl-every #'symbolp labels) (list labels) labels))
+         (faces-list (if (cl-every #'symbolp faces) (list faces) faces))
+         (child-frame (org-srs-child-frame 'org-srs-mouse-bottom-panel :size (/ (length labels-list) 16.0)))
          (current-buffer (current-buffer)))
     (with-selected-frame (make-frame-visible child-frame)
       (cl-assert (not (eq current-buffer (current-buffer))))
-      (let ((inhibit-read-only t))
-        (erase-buffer)
-        (cl-mapc
-         (lambda (label face)
-           (insert "​")
-           (insert-text-button
-            (org-srs-mouse-string-pad-pixel (capitalize (string-trim-left (format "%s" label) ":")) button-width button-height)
-            'face `((:foreground ,(face-foreground face))
-                    (:inherit custom-button))
-            'action (lambda (&optional _) (select-frame (frame-parent child-frame)) (funcall callback label)))
-           (insert "​"))
-         labels faces)
-        (goto-char (point-min))))))
+      (cl-loop with inhibit-read-only = t
+               initially (erase-buffer)
+               for labels in labels-list
+               for faces in faces-list
+               for button-width = (- (/ (frame-pixel-width child-frame) (float (length labels))) (* (string-pixel-width "​") 2))
+               for button-height = (/ (frame-pixel-height child-frame) (length labels-list))
+               do (cl-loop for label in labels
+                           for face in faces
+                           do
+                           (insert "​")
+                           (insert-text-button
+                            (org-srs-mouse-string-pad-pixel (capitalize (string-trim-left (format "%s" label) ":")) button-width button-height)
+                            'face `((:foreground ,(face-foreground face))
+                                    (:inherit custom-button))
+                            'action (let ((label label)) (lambda (&optional _) (select-frame (frame-parent child-frame)) (funcall callback label))))
+                           (insert "​")
+                           finally (insert "\n"))
+               finally (goto-char (point-min))))))
 
 ;;;###autoload
 (define-minor-mode org-srs-mouse-mode
