@@ -1,4 +1,7 @@
 #+TITLE: Org-srs
+
+[[https://melpa.org/#/org-srs][file:https://melpa.org/packages/org-srs-badge.svg]]
+
 Org Spaced Repetition System
 * Introduction
 Org-srs is a feature-rich and extensible spaced repetition system
@@ -6,11 +9,23 @@ integrated within Org-mode, allowing you to learn and review knowledge
 without leaving your Org workflow.
 * Features
 - *Everything in Org* \\
-  All data in Org-srs, including configurations and review records,
-  are stored as plain text in your Org files. This makes version
-  control easy, and by simply syncing your Org files, you can review
-  seamlessly across different devices (especially the native Emacs on
-  Android).
+  All data in Org-srs, including review histories and customizable
+  options, are stored as plain text in your Org files. This makes
+  version control easy, and by simply syncing your Org files, you can
+  review seamlessly across different devices (especially the native
+  Emacs on Android).
+- *Powerful* \\
+  Org-srs integrates the modern FSRS algorithm out of the box to help
+  you review more efficiently and effectively. You can also optimize
+  the parameters based on the content and your review habits. Org-srs
+  also includes various advanced scheduling features such as fuzzing,
+  stepped learning, and auto-burying, all with customizable
+  parameters.
+- *Performant* \\
+  Org-srs ships a caching mode that can significantly improve
+  performance if you are willing to sacrifice some flexibility (such
+  as creating items on the fly). With caching enabled, Org-srs can
+  easily handle large review collections with 10K+ items.
 - *Flexible* \\
   In Org-srs, the smallest review unit is an "item" (similar to a card
   in Anki). A content piece reviewed through one or more items is
@@ -19,17 +34,10 @@ without leaving your Org workflow.
   deletion, etc. This means an entry can hold different types of items
   to meet various review needs. For example, you can review the same
   content using both flashcards and cloze deletions simultaneously if
-  needed.
-- *Configurable* \\
-  Org-srs options can be finely controlled, allowing you to set
-  different values for the same configuration option at the global,
-  file, entry, or item level to suit your review preferences.
-- *Extensible* \\
-  Org-srs is designed to be modular. The core provides maintenance of
-  review records, finding, and planning due items, without relying on
-  any specific algorithm or review method. You can extend it with more
-  algorithms and review methods as needed by specializing the
-  corresponding generic functions.
+  needed. Moreover, various customizable options provided by Org-srs
+  can be finely controlled, allowing you to set different values for
+  the same customizable option at the global, directory, file, entry,
+  or item level to suit your review preferences.
 - *Embeddable* \\
   If you're reviewing your own notes, maintaining additional entries
   for review can be tedious. If you modify your notes or add, delete,
@@ -37,29 +45,26 @@ without leaving your Org workflow.
   entries can be a nightmare. Org-srs supports non-invasive embedding
   of review entries into your notes. This means that whenever you
   change the content of your notes, you can update the exported entry
-  with one command, without polluting the export of your Org files. By
-  using Org as the target export format, you can easily remove the
-  Org-srs markers used in the process.
-- *Batch Operations* \\
-  You can batch-export entries that need to be reviewed using regexp,
-  or batch apply cloze deletions to Org elements (e.g., tables).
-- *Modern* \\
-  By default, it integrates the FSRS algorithm to help you review more
-  efficiently and effectively. You can also optimize the parameters
-  based on the content and your review habits.
+  with one command, without polluting the export of your Org files.
+- *Extensible* \\
+  Org-srs is designed with high modularity. By virtue of generic
+  functions and hooks, algorithms, scheduling features, item types,
+  and review strategies can be extended externally as you need.
+- *Statistics Visualization* \\
+  Org-srs allows you to view review history (e.g., number of reviews
+  per day, retention rate) and the number of items scheduled for
+  review on future dates through charts.
+- *Touchscreen/Mouse Support* \\
+  Org-srs supports displaying GUI buttons via child frames to enable
+  complete review via mouse or touchscreen, perfectly adapting to
+  native Emacs on Android, allowing you to review out of your phone on
+  the go.
 * Installation
-Org-srs is currently not available on MELPA. Below is an example of
-installation using the ~:vc~ keyword in ~use-package~ (on Emacs 30 and
-above) for reference. You can also choose to use ~straight.el~ or Quelpa
-according to your preference:
+Org-srs is now available on [[https://melpa.org/#/org-srs][MELPA]]. Below is an example configuration
+with ~use-package~:
 
 #+BEGIN_SRC emacs-lisp
-  (use-package fsrs
-    :ensure t
-    :defer t)
-
   (use-package org-srs
-    :vc (:url "https://github.com/bohonghuang/org-srs.git" :rev "HEAD")
     :defer t
     :hook (org-mode . org-srs-embed-overlay-mode)
     :bind (:map org-mode-map
@@ -67,6 +72,14 @@ according to your preference:
            ("<f6>" . org-srs-review-rate-good)
            ("<f7>" . org-srs-review-rate-hard)
            ("<f8>" . org-srs-review-rate-again)))
+
+  (use-package org-srs
+    :when (eq system-type 'android)
+    :defer t
+    :custom
+    (org-srs-item-confirm #'org-srs-item-confirm-command)
+    :config
+    (org-srs-mouse-mode +1))
 #+END_SRC
 * Usage
 Here are some demonstrations and descriptions for the main features of
@@ -155,39 +168,37 @@ variables are documented.
 ** Per-directory Configuration
 #+BEGIN_SRC emacs-lisp
   ;; .dir-locals.el
-  ((org-mode . ((org-srs-review-new-items-per-day . 30)
-                (org-srs-review-max-reviews-per-day . 100))))
+  ((org-mode . ((org-srs-algorithm . fsrs)
+                (org-srs-item-confirm . org-srs-item-confirm-command))))
 #+END_SRC
 ** Per-file Configuration
 #+BEGIN_SRC org
   :PROPERTIES:
-  :SRS_REVIEW_NEW_ITEMS_PER_DAY: 30
-  :SRS_REVIEW_MAX_REVIEWS_PER_DAY: 100
+  :SRS_ALGORITHM: fsrs
+  :SRS_ITEM_CONFIRM: org-srs-item-confirm-command
   :END:
   ,#+TITLE: Title
 
   # or:
 
   # Local Variables:
-  # org-srs-review-new-items-per-day: 30
-  # org-srs-review-max-reviews-per-day: 100
+  # org-srs-algorithm: fsrs
+  # org-srs-item-confirm: org-srs-item-confirm-command
   # End:
 #+END_SRC
 ** Per-entry Configuration
 #+BEGIN_SRC org
   ,* Entry
   :PROPERTIES:
-  :SRS_REVIEW_NEW_ITEMS_PER_DAY: 30
-  :SRS_REVIEW_MAX_REVIEWS_PER_DAY: 100
+  :SRS_ALGORITHM: fsrs
+  :SRS_ITEM_CONFIRM: org-srs-item-confirm-command
   :END:
 #+END_SRC
 ** Per-item Configuration
 #+BEGIN_SRC org
-  # Note that the following options are only provided as reference
-  # examples; these two options are not valid for a single item.
   :SRSITEMS:
   ,#+NAME: srsitem:569a2e48-633d-4b8c-82b5-f3df9b29bb69::cloze::d0ee345
-  ,#+ATTR_SRS: :new-items-per-day 30 :review-max-reviews-per-day 100
+  ,#+ATTR_SRS: :algorithm fsrs :item-confirm org-srs-item-confirm-command
   | ! | timestamp            | rating | stability | difficulty | state |
   |---+----------------------+--------+-----------+------------+-------|
   |   | 2024-12-07T13:54:06Z |        |       0.0 |        0.0 | :new  |
