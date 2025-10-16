@@ -52,15 +52,17 @@
 
 (defun org-srs-item-card-regions-1 (&optional scope)
   "Determine the front and back regions of the current flashcard within SCOPE."
-  (let ((front nil) (back nil))
+  (let ((level (or (org-current-level) 0))
+        (front nil) (back nil))
     (org-map-entries
      (lambda ()
-       (let ((heading (cl-fifth (org-heading-components))))
-         (cond
-          ((string-equal-ignore-case heading "Front")
-           (setf front (cons (point) (org-srs-entry-end-position))))
-          ((string-equal-ignore-case heading "Back")
-           (setf back (cons (point) (org-srs-entry-end-position)))))))
+       (when (= (org-current-level) (1+ level))
+         (let ((heading (cl-fifth (org-heading-components))))
+           (cond
+            ((string-equal-ignore-case heading "Front")
+             (setf front (cons (point) (org-srs-entry-end-position))))
+            ((string-equal-ignore-case heading "Back")
+             (setf back (cons (point) (org-srs-entry-end-position))))))))
      nil scope)
     (cl-values front back)))
 
