@@ -185,14 +185,12 @@ from a large set of review items."
         (org-srs-review-cache-ensure-gethash args markers (apply fun args)))
     (apply fun args)))
 
-(define-advice org-srs-item-goto (:around (fun &rest args) org-srs-review-cache)
-  (cl-assert args)
-  (defvar org-srs-item-marker@org-srs-review-cache)
-  (if (and (not (bound-and-true-p org-srs-item-marker@org-srs-review-cache)) (org-srs-review-cache-active-p))
-      (let ((marker (let ((org-srs-item-marker@org-srs-review-cache t)) (apply #'org-srs-item-marker args))))
-        (switch-to-buffer (marker-buffer marker) nil t)
-        (goto-char marker))
-    (apply fun args)))
+(define-advice org-srs-item-goto (:around (fun item &rest args) org-srs-review-cache)
+  (if (or (bound-and-true-p org-srs-item-marker@org-srs-review-cache) (not (org-srs-review-cache-active-p)))
+      (apply fun item args)
+    (when args (cl-assert (eq (window-buffer) (current-buffer))))
+    (defvar org-srs-item-marker@org-srs-review-cache)
+    (org-srs-item-goto-marker (let ((org-srs-item-marker@org-srs-review-cache t)) (apply #'org-srs-item-marker item args)))))
 
 (define-advice org-srs-query (:around (fun &rest args) org-srs-review-cache)
   (cl-destructuring-bind (predicate &optional (source (or (buffer-file-name) default-directory))) args

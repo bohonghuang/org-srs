@@ -92,18 +92,22 @@
     (org-srs-item-link-search (org-srs-item-link item id))
     (point-marker)))
 
-(defun org-srs-item-goto (&rest args)
-  "Switch buffer and move point to the review item specified by ARGS.
-
-ARGS are passed to `org-srs-item-marker' to locate the review item."
-  (let* ((marker (apply #'org-srs-item-marker args))
-         (buffer (marker-buffer marker)))
-    (cl-assert (eq (window-buffer) (current-buffer)))
+(cl-defun org-srs-item-goto-marker (marker)
+  "Switch buffer and move point to MARKER."
+  (let ((buffer (marker-buffer marker)))
     (unless (eq buffer (current-buffer))
+      (cl-assert (eq (window-buffer) (current-buffer)))
       (switch-to-buffer buffer nil t)
-      (cl-assert (eq (window-buffer) buffer)))
-    (cl-assert (eq (current-buffer) buffer))
+      (cl-assert (eq (window-buffer) buffer))
+      (cl-assert (eq (current-buffer) buffer)))
     (goto-char marker)))
+
+(defun org-srs-item-goto (item &rest args)
+  "Switch buffer and move point to the review item specified by ITEM and ARGS.
+
+ITEM and ARGS are passed to `org-srs-item-marker' to locate the review item."
+  (when args (cl-assert (eq (window-buffer) (current-buffer))))
+  (org-srs-item-goto-marker (apply #'org-srs-item-marker item args)))
 
 (defmacro org-srs-item-save-selected-window-excursion (&rest body)
   "Execute BODY while preserving selected window and buffer."

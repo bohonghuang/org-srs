@@ -287,15 +287,12 @@ embedded cloze deletions when no active region is present."
   (let ((cloze-identifier (org-srs-item-cloze-identifier)))
     (org-srs-embed-process-clozes
      start end
-     (let ((identifiers (make-hash-table)))
-       (lambda (cloze)
-         (let ((identifier (funcall cloze-identifier cloze)))
-           (cl-assert (looking-back (rx "{{" (group (*? not-newline)) (or "}}" (and "}{" (group (*? not-newline)) "}}"))) (line-beginning-position)))
-           (goto-char (match-beginning 0))
-           (forward-char 1)
-           (cl-assert (null (gethash identifier identifiers)))
-           (setf (gethash identifier identifiers) cloze)
-           (insert "{" (org-srs-item-princ-to-string identifier) "}")))))))
+     (lambda (cloze)
+       (let ((identifier (funcall cloze-identifier cloze)))
+         (cl-assert (looking-back (rx "{{" (group (*? not-newline)) (or "}}" (and "}{" (group (*? not-newline)) "}}"))) (line-beginning-position)))
+         (goto-char (match-beginning 0))
+         (forward-char 1)
+         (insert "{" (org-srs-item-princ-to-string identifier) "}"))))))
 
 (defvar-local org-srs-embed-export-window-configuration nil
   "Saved window configuration during the export process.")
