@@ -162,6 +162,11 @@
     (ignore args)
     (org-srs-review-strategy-items 'done strategy)))
 
+(cl-defmethod org-srs-review-strategy-items (state (_strategy (eql 'reverse)) &rest args)
+  "Method to return reversed items of STATE matching the strategy in ARGS."
+  (cl-destructuring-bind (strategy) args
+    (nreverse (org-srs-review-strategy-items state strategy))))
+
 (cl-defmethod org-srs-review-strategy-items (_state (_strategy (eql 'done)) &rest args)
   "Method to return all reviewed items matching the strategy in ARGS."
   (cl-destructuring-bind (strategy) args
@@ -200,7 +205,11 @@
       (priority (cl-sort items #'> :key (apply-partially #'apply #'org-srs-item-priority)))
       (interval (cl-sort items #'< :key (apply-partially #'apply #'org-srs-item-interval)))
       (random (cl-sort items #'< :key #'sxhash-eq))
-      (t (apply #'cl-sort items (cl-etypecase order (function (list #'< :key order)) (list order)))))))
+      (t (apply #'cl-sort items (cl-etypecase order
+                                  (function (cl-ecase (car (func-arity order))
+                                              (2 (list order))
+                                              ((0 1) (list #'< :key order))))
+                                  (list order)))))))
 
 (provide 'org-srs-review-strategy)
 ;;; org-srs-review-strategy.el ends here

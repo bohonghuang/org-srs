@@ -78,18 +78,21 @@
         (unit-seconds (org-srs-time-desc-seconds unit)))
     (list (* (round interval-seconds unit-seconds) unit-seconds) :sec)))
 
-(defun org-srs-schedule-fuzz-calculate-interval (time-scheduled time-review)
-  "Calculate a random fuzzing interval based on TIME-SCHEDULED and TIME-REVIEW."
+(defun org-srs-schedule-fuzz-interval-base (scheduled-interval-seconds)
+  "Calculate the base fuzzing interval for SCHEDULED-INTERVAL-SECONDS."
   (cl-flet ((cl-clamp (number min max) (if (< number min) min (if (> number max) max number))))
-    (let ((interval (org-srs-time-desc-seconds
-                     (funcall (org-srs-schedule-fuzz-interval)
-                              (list (cl-loop with scheduled-interval-seconds = (org-srs-time-difference time-scheduled time-review)
-                                             for ((interval . factor) (next-interval . nil)) on (org-srs-schedule-fuzz-ranges)
-                                             for interval-seconds = (org-srs-time-desc-seconds interval)
-                                             for next-interval-seconds = (if next-interval (org-srs-time-desc-seconds next-interval) cl-most-positive-float)
-                                             sum (* factor (- (cl-clamp scheduled-interval-seconds interval-seconds next-interval-seconds) interval-seconds)))
-                                    :sec)))))
-      (list (if (cl-plusp interval) (- (cl-random (* 2.0 interval)) interval) 0.0) :sec))))
+    (org-srs-time-desc-seconds
+     (funcall (org-srs-schedule-fuzz-interval)
+              (list (cl-loop for ((interval . factor) (next-interval . nil)) on (org-srs-schedule-fuzz-ranges)
+                             for interval-seconds = (org-srs-time-desc-seconds interval)
+                             for next-interval-seconds = (if next-interval (org-srs-time-desc-seconds next-interval) cl-most-positive-float)
+                             sum (* factor (- (cl-clamp scheduled-interval-seconds interval-seconds next-interval-seconds) interval-seconds)))
+                    :sec)))))
+
+(defun org-srs-schedule-fuzz-calculate-interval (interval)
+  "Calculate a random fuzzing interval based on INTERVAL."
+  (let ((interval (org-srs-schedule-fuzz-interval-base interval)))
+    (list (if (cl-plusp interval) (- (cl-random (* 2.0 interval)) interval) 0.0) :sec)))
 
 (defun org-srs-schedule-fuzz-due-timestamp ()
   "Return a fuzzed due timestamp for the current review item."
@@ -99,7 +102,7 @@
       (let ((time-scheduled (org-srs-timestamp-time timestamp-scheduled))
             (time-review (org-srs-timestamp-time timestamp-review)))
         (apply #'org-srs-timestamp+ timestamp-scheduled
-               (org-srs-schedule-fuzz-interval-round (org-srs-schedule-fuzz-calculate-interval time-scheduled time-review)))))))
+               (org-srs-schedule-fuzz-interval-round (org-srs-schedule-fuzz-calculate-interval (org-srs-time-difference time-scheduled time-review))))))))
 
 (defun org-srs-schedule-fuzz-update-due-timestamp ()
   "Update the due timestamp of the current review item with fuzzing applied."

@@ -69,11 +69,6 @@
                    (run-hooks 'org-srs-review-before-rate-hook))
               (org-srs-item-with-current item
                 (org-srs-table-goto-starred-line)
-                (unless args
-                  (cl-assert
-                   (time-less-p
-                    (org-srs-timestamp-time (org-srs-table-field 'timestamp))
-                    (org-srs-time-tomorrow))))
                 (apply #'org-srs-item-repeat (cl-nth-value 0 (org-srs-item-at-point)) (when rating (list :rating rating))))
             (let ((org-srs-review-rating rating))
               (run-hooks 'org-srs-review-after-rate-hook)

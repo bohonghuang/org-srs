@@ -48,6 +48,7 @@
 (require 'org-srs-review-rate)
 (require 'org-srs-review-strategy)
 (require 'org-srs-review-cache)
+(require 'org-srs-review-ahead)
 
 (require 'org-srs-schedule)
 (require 'org-srs-schedule-offset)
