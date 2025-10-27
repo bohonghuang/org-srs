@@ -179,10 +179,13 @@ ITEM and ARGS are passed to `org-srs-item-marker' to locate the review item."
 
 (defun org-srs-item-last-review-time (&rest args)
   "Return the last review time for the review item specified by ARGS."
-  (org-srs-item-with-current args
-    (org-srs-table-goto-starred-line)
-    (forward-line -1)
-    (org-srs-timestamp-time (org-srs-table-field 'timestamp))))
+  (if args
+      (org-srs-item-with-current args
+        (org-srs-item-last-review-time))
+    (save-excursion
+      (org-srs-table-goto-starred-line)
+      (forward-line -1)
+      (org-srs-timestamp-time (org-srs-table-field 'timestamp)))))
 
 (defun org-srs-item-interval (&rest args)
   "Return the interval of the review item specified by ARGS as seconds."
