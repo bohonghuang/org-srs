@@ -216,9 +216,8 @@ from a large set of review items."
            ,value)))))
 
 (defun org-srs-review-cache-item (&rest args)
-  "Convert a review item specified by ARGS into a full specification for it."
-  (cl-destructuring-bind (item &optional (id (org-id-get)) (buffer (current-buffer) bufferp)) args
-    (if bufferp args (list item id buffer))))
+  "Return the full specification for the review item specified by ARGS as a list."
+  (cl-multiple-value-list (apply #'org-srs-item-full args)))
 
 (define-advice org-srs-item-due-time (:around (fun &rest args) org-srs-review-cache)
   (if (and (org-srs-review-cache-active-p) args)

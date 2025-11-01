@@ -254,7 +254,8 @@ to review."
                 (org-srs-review-start source)))
             'org-srs-review)
            50))
-      (let ((org-srs-reviewing-p nil)) (run-hooks 'org-srs-review-finish-hook)))))
+      (let ((org-srs-reviewing-p (when (boundp 'org-srs-reviewing-p) (setf org-srs-reviewing-p nil))))
+        (run-hooks 'org-srs-review-finish-hook)))))
 
 (defun org-srs-review-message-review-done ()
   "Display a message in the minibuffer when the current review session finishes."

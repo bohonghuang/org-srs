@@ -212,6 +212,14 @@ ITEM and ARGS are passed to `org-srs-item-marker' to locate the review item."
     (when (re-search-forward org-srs-item-header-regexp (org-srs-item-end) t)
       (org-srs-item-from-match-data))))
 
+(cl-defun org-srs-item-full (&rest args)
+  "Return the full specification for the review item specified by ARGS."
+  (cl-destructuring-bind (&optional (item nil itemp) (id (org-id-get)) (buffer (current-buffer) bufferp)) args
+    (cond
+     (bufferp (cl-values-list args))
+     (itemp (cl-values item id buffer))
+     (t (apply #'org-srs-item-full (or (cl-multiple-value-list (org-srs-item-at-point)) (cl-return-from org-srs-item-full)))))))
+
 (cl-defun org-srs-item-bounds (&optional (item (cl-nth-value 0 (org-srs-item-at-point))) &rest args)
   "Return the start and end positions of review ITEM with ARGS as a cons cell."
   (org-srs-item-with-current (item . args)
