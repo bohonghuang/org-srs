@@ -97,16 +97,15 @@
                 (newline)
                 (insert "#+NAME: " (apply #'org-srs-item-link org-srs-review-item-args)))
               (org-srs-table-duplicate-line)
-              (let ((buffer-undo-list nil))
-                (defvar org-srs-review-rating)
-                (defvar org-srs-review-item)
-                (defvar cl--random-state)
-                (cl-flet ((rate (rating)
+              (defvar org-srs-review-rating)
+              (defvar org-srs-review-item)
+              (defvar cl--random-state)
+              (cl-flet ((rate (rating)
+                          (let ((buffer-undo-list nil))
                             (save-excursion
                               (prog2 (let ((org-srs-review-rating rating)
                                            (org-srs-review-item org-srs-review-item-args)
                                            (cl--random-state (org-srs-stats-deep-copy cl--random-state)))
-                                       (undo-boundary)
                                        (cl-assert (not (local-variable-p 'org-srs-review-before-rate-hook)))
                                        (cl-assert (not (local-variable-p 'org-srs-review-after-rate-hook)))
                                        (run-hooks 'org-srs-review-before-rate-hook)
@@ -115,8 +114,8 @@
                                   (org-srs-timestamp-difference
                                    (org-srs-item-due-timestamp)
                                    (org-srs-timestamp-now))
-                                (primitive-undo 1 buffer-undo-list)))))
-                  (cl-return-from org-srs-stats-call-with-rating-simulator (funcall thunk #'rate)))))))))))
+                                (primitive-undo (length buffer-undo-list) buffer-undo-list))))))
+                (cl-return-from org-srs-stats-call-with-rating-simulator (funcall thunk #'rate))))))))))
 
 (cl-defmacro org-srs-stats-with-rating-simulator (args &rest body)
   "Execute BODY with a rating simulator function bound to ARGS."

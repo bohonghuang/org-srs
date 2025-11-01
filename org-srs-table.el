@@ -220,9 +220,12 @@ This function is internally used in `org-srs-table-call-with-temp-buffer'."
     (insert table)
     (let ((org-mode-hook nil)) (org-mode))
     (goto-char (+ (org-srs-table-begin) point))
-    (funcall thunk)
-    (let* ((begin (org-srs-table-begin)) (end (org-table-end)) (point (- (point) begin)))
-      (cl-values (buffer-substring-no-properties begin end) point))))
+    (let ((buffer-undo-list nil))
+      (funcall thunk)
+      (let* ((begin (org-srs-table-begin)) (end (org-srs-table-end)) (point (- (point) begin)))
+        (if buffer-undo-list
+            (cl-values (buffer-substring-no-properties begin end) point)
+          (cl-values table point))))))
 
 (cl-defmacro org-srs-table-with-temp-buffer-1 (&rest body)
   "Execute BODY in a temporary buffer with a copy of the current table.
@@ -238,10 +241,11 @@ Update the buffer with any modifications made by THUNK and restore point."
   (let* ((begin (org-srs-table-begin)) (end (1- (org-srs-table-end))) (point (- (point) begin))
          (table (buffer-substring-no-properties begin end)))
     (cl-assert (>= (point) begin))
-    (cl-multiple-value-bind (table point) (org-srs-table-call-with-temp-buffer-1 thunk table point)
-      (delete-region begin end)
-      (insert table)
-      (cl-loop while (= (line-beginning-position) (point) (line-end-position)) do (delete-char 1))
+    (cl-multiple-value-bind (table-new point) (org-srs-table-call-with-temp-buffer-1 thunk table point)
+      (unless (eq table table-new)
+        (delete-region begin end)
+        (insert table-new)
+        (cl-loop while (= (line-beginning-position) (point) (line-end-position)) do (delete-char 1)))
       (goto-char (+ begin point)))))
 
 (defvar org-srs-table-with-temp-buffer-function #'org-srs-table-call-with-temp-buffer
