@@ -357,7 +357,6 @@ COMMAND specifies the confirmation command to check and defaults to
 (defun org-srs-item-call-with-transient-modifications (thunk)
   "Call THUNK and then undo all changes it made to the current buffer."
   (let ((buffer-undo-list nil))
-    (undo-boundary)
     (unwind-protect (funcall thunk)
       (primitive-undo (length buffer-undo-list) buffer-undo-list))))
 
