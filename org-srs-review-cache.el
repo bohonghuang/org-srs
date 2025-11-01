@@ -301,7 +301,7 @@ from a large set of review items."
   (when (org-srs-review-cache-p)
     (apply #'org-srs-review-cache-updated-item item)))
 
-(add-hook 'org-srs-review-after-rate-hook #'org-srs-review-cache-after-rate 95)
+(add-hook 'org-srs-review-after-rate-hook #'org-srs-review-cache-after-rate 10)
 
 (defun org-srs-review-cache-cleanup-on-quit ()
   "Clear the review cache when quitting a review session."

@@ -115,7 +115,7 @@
               (setf (org-srs-table-field 'timestamp) (org-srs-schedule-fuzz-due-timestamp))))))
     (setf (org-srs-table-field 'timestamp) (org-srs-schedule-fuzz-due-timestamp))))
 
-(add-hook 'org-srs-review-after-rate-hook #'org-srs-schedule-fuzz-update-due-timestamp 60)
+(add-hook 'org-srs-review-after-rate-hook #'org-srs-schedule-fuzz-update-due-timestamp -20)
 
 (provide 'org-srs-schedule-fuzz)
 ;;; org-srs-schedule-fuzz.el ends here

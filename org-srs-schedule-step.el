@@ -142,8 +142,7 @@
               (setf (org-srs-table-field 'timestamp) (org-srs-schedule-step-due-timestamp))))))
     (setf (org-srs-table-field 'timestamp) (org-srs-schedule-step-due-timestamp))))
 
-
-(add-hook 'org-srs-review-after-rate-hook #'org-srs-schedule-step-update-due-timestamp 50)
+(add-hook 'org-srs-review-after-rate-hook #'org-srs-schedule-step-update-due-timestamp -30)
 
 (provide 'org-srs-schedule-step)
 ;;; org-srs-schedule-step.el ends here

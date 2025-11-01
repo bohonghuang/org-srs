@@ -294,7 +294,7 @@ Automatically widen after reviewing the current item."
   (org-back-to-heading-or-point-min)
   (unless (org-before-first-heading-p)
     (org-narrow-to-subtree))
-  (org-srs-item-add-hook-once 'org-srs-review-continue-hook #'widen))
+  (org-srs-item-add-hook-once 'org-srs-review-continue-hook #'widen 20))
 
 (defvar org-srs-item-before-confirm-hook nil
   "Hook run before confirming a review item.")

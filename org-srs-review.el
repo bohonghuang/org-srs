@@ -253,7 +253,7 @@ to review."
               (when (org-srs-reviewing-p)
                 (org-srs-review-start source)))
             'org-srs-review)
-           100))
+           50))
       (let ((org-srs-reviewing-p nil)) (run-hooks 'org-srs-review-finish-hook)))))
 
 (defun org-srs-review-message-review-done ()

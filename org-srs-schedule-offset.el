@@ -104,7 +104,7 @@
                 (setf (org-srs-table-field 'timestamp) (org-srs-schedule-offset-learn-ahead-due-timestamp timestamp-due)))))))
     (setf (org-srs-table-field 'timestamp) (org-srs-schedule-offset-learn-ahead-due-timestamp timestamp-due))))
 
-(add-hook 'org-srs-review-after-rate-hook #'org-srs-schedule-offset-update-due-timestamp 70)
+(add-hook 'org-srs-review-after-rate-hook #'org-srs-schedule-offset-update-due-timestamp -10)
 
 (provide 'org-srs-schedule-offset)
 ;;; org-srs-schedule-offset.el ends here
