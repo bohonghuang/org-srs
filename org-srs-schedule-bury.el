@@ -81,7 +81,6 @@
     (when-let ((timestamp (org-srs-schedule-bury-due-timestamp interval)))
       (setf (org-srs-table-field 'timestamp) timestamp))))
 
-(add-hook 'org-srs-review-after-rate-hook #'org-srs-schedule-bury-update-due-timestamp 40)
-
+(add-hook 'org-srs-review-after-rate-hook #'org-srs-schedule-bury-update-due-timestamp -40)
 (provide 'org-srs-schedule-bury)
 ;;; org-srs-schedule-bury.el ends here
