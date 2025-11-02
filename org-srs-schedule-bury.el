@@ -65,6 +65,8 @@
     (when (org-srs-timestamp< timestamp (org-srs-timestamp (org-srs-time-tomorrow)))
       (apply #'org-srs-timestamp+ (org-srs-timestamp-now) interval))))
 
+(defvar org-srs-review-item)
+
 (cl-defun org-srs-schedule-bury-update-due-timestamp (&optional (interval (org-srs-schedule-bury-interval)))
   "Postpone sibling review items by INTERVAL."
   (if (boundp 'org-srs-review-rating)

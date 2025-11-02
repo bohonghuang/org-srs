@@ -332,6 +332,8 @@ from a large set of review items."
                    (org-srs-review-cache-pending-queue predicate) (cons due-time item)
                    (eval-when-compile (lambda (&rest _) (cl-assert nil))))))))
 
+(defvar org-srs-review-item)
+
 (cl-defun org-srs-review-cache-after-rate (&optional (item org-srs-review-item))
   "Update the review cache after rating ITEM."
   (when (org-srs-review-cache-p)

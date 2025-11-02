@@ -104,6 +104,8 @@
         (apply #'org-srs-timestamp+ timestamp-scheduled
                (org-srs-schedule-fuzz-interval-round (org-srs-schedule-fuzz-calculate-interval (org-srs-time-difference time-scheduled time-review))))))))
 
+(defvar org-srs-review-item)
+
 (defun org-srs-schedule-fuzz-update-due-timestamp ()
   "Update the due timestamp of the current review item with fuzzing applied."
   (if (boundp 'org-srs-review-rating)

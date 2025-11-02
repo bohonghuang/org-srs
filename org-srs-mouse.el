@@ -107,6 +107,8 @@ CALLBACK is a function called with the pressed button's label."
     (remove-hook 'window-size-change-functions #'org-srs-mouse-mode-update-panels)
     (setf (org-srs-child-frames 'org-srs-mouse-bottom-panel) nil)))
 
+(defvar org-srs-review-item)
+
 (defun org-srs-mouse-show-intervals-in-minibuffer ()
   "Display review intervals for the current review item in the minibuffer."
   (when (and org-srs-mouse-mode (org-srs-reviewing-p) (not (org-srs-item-confirm-pending-p)))
@@ -135,7 +137,7 @@ CALLBACK is a function called with the pressed button's label."
 
 (defun org-srs-mouse-mode-update-panels-1 ()
   "Update panels based on the current review state."
-  (if (and org-srs-mouse-mode (eq major-mode 'org-mode) org-srs-review-item)
+  (if (and org-srs-mouse-mode (eq major-mode 'org-mode) (bound-and-true-p org-srs-review-item))
       (if-let ((confirm-command (org-srs-item-confirm-pending-p)))
           (org-srs-mouse-bottom-panel-show
            '(continue)

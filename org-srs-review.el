@@ -51,8 +51,7 @@
 
 (defvar org-srs-review-source)
 
-(defvar org-srs-review-item nil
-  "Item being reviewed in the current review session.")
+(defvar org-srs-review-item)
 
 (defvar org-srs-reviewing-p)
 
@@ -225,7 +224,7 @@ source choice."
   (cl-assert (local-variable-p 'org-srs-review-item))
   (cl-assert (consp org-srs-review-item))
   (kill-local-variable 'org-srs-review-item)
-  (cl-assert (null org-srs-review-item))
+  (cl-assert (not (boundp 'org-srs-review-item)))
   (kill-local-variable 'org-srs-review-continue-hook))
 
 ;;;###autoload
@@ -242,7 +241,7 @@ to review."
         (let ((item (cl-first item-args)) (org-srs-reviewing-p t))
           (apply #'org-srs-item-goto item-args)
           (cl-assert (not (local-variable-p 'org-srs-review-item)))
-          (cl-assert (null org-srs-review-item))
+          (cl-assert (null (bound-and-true-p org-srs-review-item)))
           (setq-local org-srs-review-item item-args)
           (apply #'org-srs-item-review (car item) (cdr item))
           (org-srs-review-add-hook-once
@@ -283,7 +282,7 @@ to review."
 ARGS specifies the item to postpone. If ARGS is nil, the current review item is
 used."
   (interactive (list (read-from-minibuffer "Interval: " (prin1-to-string '(1 :day)) nil t)))
-  (setf args (or args org-srs-review-item (cl-multiple-value-list (org-srs-item-at-point))))
+  (setf args (or args (bound-and-true-p org-srs-review-item) (cl-multiple-value-list (org-srs-item-at-point))))
   (org-srs-item-with-current args
     (setf (org-srs-item-due-timestamp) (cl-etypecase time
                                          (org-srs-timestamp time)

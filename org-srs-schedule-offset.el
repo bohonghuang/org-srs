@@ -83,6 +83,8 @@
       (setf (buffer-local-value 'org-srs-schedule-offset-due-timestamp buffer) timestamp)
     (kill-local-variable 'org-srs-schedule-offset-due-timestamp)))
 
+(defvar org-srs-review-item)
+
 (defun org-srs-schedule-offset-save-due-timestamp ()
   "Save the current due timestamp before it gets updated by rating."
   (when (bound-and-true-p org-srs-review-rating)

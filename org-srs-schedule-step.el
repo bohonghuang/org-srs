@@ -131,6 +131,8 @@
                  (apply #'org-srs-timestamp+ timestamp-review step-next)
                  (org-srs-timestamp+ (apply #'org-srs-timestamp+ timestamp-review step-last) 1 :day))))))))))
 
+(defvar org-srs-review-item)
+
 (defun org-srs-schedule-step-update-due-timestamp ()
   "Update the due timestamp of the current review item based on its learning steps."
   (if (boundp 'org-srs-review-rating)
