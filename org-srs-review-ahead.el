@@ -43,7 +43,7 @@
 (require 'org-srs-schedule-fuzz)
 
 (defgroup org-srs-review-ahead nil
-  "Reviewing items due in the near future."
+  "Review items due in the near future."
   :group 'org-srs-review
   :prefix "org-srs-review-ahead-")
 

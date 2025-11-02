@@ -43,7 +43,7 @@
 (require 'org-srs-table)
 
 (defgroup org-srs nil
-  "Spaced repetition system inside Org-mode."
+  "A spaced repetition system inside Org-mode."
   :group 'org
   :prefix "org-srs-"
   :link '(url-link "https://github.com/bohonghuang/org-srs"))

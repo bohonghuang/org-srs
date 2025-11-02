@@ -41,7 +41,7 @@
 (require 'org-srs-time)
 
 (defgroup org-srs-query nil
-  "Searching and querying review items matching specific predicates."
+  "Search and query review items matching specific predicates."
   :group 'org-srs
   :prefix "org-srs-query-")
 

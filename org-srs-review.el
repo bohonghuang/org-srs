@@ -45,7 +45,7 @@
 (require 'org-srs-review-strategy)
 
 (defgroup org-srs-review nil
-  "Scheduling and reviewing items within specified scopes."
+  "Schedule and review items within specified scopes."
   :group 'org-srs
   :prefix "org-srs-review-")
 

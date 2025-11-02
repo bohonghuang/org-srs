@@ -46,7 +46,7 @@
 (require 'org-srs-review-rate)
 
 (defgroup org-srs-review-cram nil
-  "Cramming review items and rating them without modifying review histories."
+  "Cram review items and rate them without modifying review histories."
   :group 'org-srs-review
   :prefix "org-srs-review-cram-")
 

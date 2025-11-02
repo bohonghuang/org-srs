@@ -50,7 +50,7 @@
 (require 'org-srs-item-cloze)
 
 (defgroup org-srs-embed nil
-  "Embedding and exporting review items to reduce their maintenance cost."
+  "Embed and export review items to reduce their maintenance cost."
   :group 'org-srs
   :prefix "org-srs-embed-")
 

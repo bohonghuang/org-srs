@@ -45,7 +45,7 @@
 (require 'org-srs-schedule)
 
 (defgroup org-srs-schedule-fuzz nil
-  "Fuzzing review intervals to balance due date distribution."
+  "Fuzz review intervals to balance due date distribution."
   :group 'org-srs-schedule
   :prefix "org-srs-schedule-fuzz-")
 

@@ -47,7 +47,7 @@
 (require 'org-srs-query)
 
 (defgroup org-srs-item-cloze nil
-  "Cloze type for review items."
+  "Cloze deletion type for review items."
   :group 'org-srs-item
   :prefix "org-srs-item-cloze-")
 

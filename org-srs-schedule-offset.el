@@ -44,7 +44,7 @@
 (require 'org-srs-schedule)
 
 (defgroup org-srs-schedule-offset nil
-  "Offsetting due timestamps to handle undue reviews, such as learning ahead or overdue reviews."
+  "Offset due timestamps to handle undue reviews, such as learning ahead or overdue reviews."
   :group 'org-srs-schedule
   :prefix "org-srs-schedule-offset-")
 
