@@ -223,6 +223,9 @@ ITEM and ARGS are passed to `org-srs-item-marker' to locate the review item."
      (itemp (cl-values item id buffer))
      (t (apply #'org-srs-item-full (or (cl-multiple-value-list (org-srs-item-at-point)) (cl-return-from org-srs-item-full)))))))
 
+(defalias 'org-srs-item-equal (apply-partially #'cl-every #'equal)
+  "Return non-nil if review item specifications A and B are equal.")
+
 (cl-defun org-srs-item-bounds (&optional (item (cl-nth-value 0 (org-srs-item-at-point))) &rest args)
   "Return the start and end positions of review ITEM with ARGS as a cons cell."
   (org-srs-item-with-current (item . args)
