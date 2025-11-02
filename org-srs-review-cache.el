@@ -219,12 +219,46 @@ from a large set of review items."
   "Return the full specification for the review item specified by ARGS as a list."
   (cl-multiple-value-list (apply #'org-srs-item-full args)))
 
-(define-advice org-srs-item-due-time (:around (fun &rest args) org-srs-review-cache)
+(defun org-srs-review-cache-nth (n list &optional default)
+  "Return the Nth element of LIST, or DEFAULT if N is out of bounds."
+  (cl-loop for i from 0
+           for elem in list
+           when (= i n)
+           return elem
+           finally (cl-return default)))
+
+(gv-define-expander org-srs-review-cache-nth
+  (lambda (do n list &rest args)
+    (funcall
+     do `(org-srs-review-cache-nth ,n ,list . ,args)
+     (lambda (value)
+       (cl-with-gensyms (dummy-cons cons block)
+         `(cl-loop named ,block
+                   with ,dummy-cons = (cons nil ,list)
+                   for ,cons = ,dummy-cons then (cdr ,cons)
+                   repeat (1+ ,n)
+                   unless (cdr ,cons)
+                   do (setf (cdr ,cons) (cons nil nil))
+                   finally (cl-return-from ,block (setf ,list (cdr ,dummy-cons) (car ,cons) ,value))))))))
+
+(defmacro org-srs-review-cache-ensure-nth (n list &optional default)
+  "Get the value from LIST at index N, setting it to DEFAULT if not found."
+  (cl-once-only (n)
+    (cl-with-gensyms (value null)
+      `(let ((,value (org-srs-review-cache-nth ,n ,list ',null)))
+         (if (eq ,value ',null)
+             (setf (org-srs-review-cache-nth ,n ,list ',null) ,default)
+           ,value)))))
+
+(define-advice org-srs-item-due-times (:around (fun n &rest args) org-srs-review-cache)
   (if (and (org-srs-review-cache-active-p) args)
-      (let ((args (apply #'org-srs-review-cache-item args))
-            (due-times (org-srs-review-cache-due-times (org-srs-review-cache))))
-        (org-srs-review-cache-ensure-gethash args due-times (apply fun args)))
-    (apply fun args)))
+      (let* ((args (apply #'org-srs-review-cache-item args))
+             (cached-due-times (org-srs-review-cache-due-times (org-srs-review-cache)))
+             (due-times (gethash args cached-due-times)))
+        (if (< (length due-times) n)
+            (setf (gethash args cached-due-times) (apply fun n args))
+          due-times))
+    (apply fun n args)))
 
 (define-advice org-srs-item-marker (:around (fun &rest args) org-srs-review-cache)
   (if (and (org-srs-review-cache-active-p) args)
@@ -275,12 +309,15 @@ from a large set of review items."
   (org-srs-property-let (org-srs-review-cache-p)
     (apply fun args)))
 
+(defconst org-srs-review-cache-due-time-count 2
+  "Number of due times to cache for review items.")
+
 (defun org-srs-review-cache-updated-item (&rest args)
   "Update the review cache for the updated review item specified by ARGS."
   (when-let ((cache (org-srs-review-cache))
              (item (apply #'org-srs-review-cache-item (or args (cl-multiple-value-list (org-srs-item-at-point))))))
     (org-srs-item-with-current item
-      (cl-loop with due-time = (setf (gethash item (org-srs-review-cache-due-times cache)) (org-srs-item-due-time))
+      (cl-loop with due-time = (cl-first (setf (gethash item (org-srs-review-cache-due-times cache)) (org-srs-item-due-times org-srs-review-cache-due-time-count)))
                for (predicate . items) in (org-srs-review-cache-queries cache)
                for (all-satisfied-p . rest-satisfied-p)
                = (pcase predicate

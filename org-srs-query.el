@@ -153,7 +153,7 @@ ARGS are passed to `org-srs-query-predicate-updated' as is."
      do `(cl-values . ,args)
      (lambda (values)
        (let ((vars (mapcar #'gensym args)))
-         `(cl-destructuring-bind ,vars ,values
+         `(cl-multiple-value-bind ,vars ,values
             (setf . ,(cl-mapcan #'list args vars))))))))
 
 (defmacro org-srs-query-cl-loop (&rest args)

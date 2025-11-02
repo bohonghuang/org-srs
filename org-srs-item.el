@@ -144,31 +144,48 @@ ITEM and ARGS are passed to `org-srs-item-marker' to locate the review item."
 
 (defun org-srs-item-due-timestamp-1 ()
   "Return the timestamp string of the latest review from the current review item."
-  (save-excursion
-    (goto-char (org-srs-table-begin))
-    (re-search-forward org-srs-log-latest-timestamp-regexp (org-srs-table-end) t)
-    (match-string-no-properties 2)))
+  (goto-char (org-srs-table-begin))
+  (re-search-forward org-srs-log-latest-timestamp-regexp (org-srs-table-end) t)
+  (match-string-no-properties 2))
+
+(defun org-srs-item-due-timestamps (n &rest args)
+  "Return the last N due timestamps for the review item specified by ARGS."
+  (if args
+      (org-srs-item-with-current args
+        (org-srs-item-due-timestamps n))
+    (save-excursion
+      (cl-loop for timestamp = (org-srs-item-due-timestamp-1) then (progn (forward-line -1) (org-srs-table-field 'timestamp))
+               collect timestamp
+               repeat (1- n)))))
 
 (defun org-srs-item-due-timestamp (&rest args)
   "Return the due timestamp string for the review item specified by ARGS."
-  (if args
-      (org-srs-item-with-current args
-        (org-srs-item-due-timestamp))
-    (save-excursion
-      (org-srs-item-due-timestamp-1))))
+  (cl-first (apply #'org-srs-item-due-timestamps 1 args)))
 
 (cl-defmethod (setf org-srs-item-due-timestamp) (value &rest args)
   "Set the due timestamp of the review item specified by ARGS to VALUE."
   (if args
       (org-srs-item-with-current args
         (setf (org-srs-item-due-timestamp) value))
-    (if (org-srs-item-due-timestamp-1)
+    (if (save-excursion (org-srs-item-due-timestamp-1))
         (replace-match value t t nil 2)
       (setf (org-srs-table-field 'timestamp) value))))
 
+(defun org-srs-item-due-times (n &rest args)
+  "Return the last N due times for the review item specified by ARGS."
+  (mapcar #'org-srs-timestamp-time (apply #'org-srs-item-due-timestamps n args)))
+
 (defun org-srs-item-due-time (&rest args)
   "Return the due time value for the review item specified by ARGS."
-  (org-srs-timestamp-time (apply #'org-srs-item-due-timestamp args)))
+  (cl-first (apply #'org-srs-item-due-times 1 args)))
+
+(defun org-srs-item-last-review-time (&rest args)
+  "Return the last review time for the review item specified by ARGS."
+  (cl-second (apply #'org-srs-item-due-times 2 args)))
+
+(defun org-srs-item-interval (&rest args)
+  "Return the interval of the review item specified by ARGS as seconds."
+  (apply #'org-srs-time-difference (apply #'org-srs-item-due-times 2 args)))
 
 (defun org-srs-item-priority (&rest args)
   "Return the priority of the review item specified by ARGS as a number."
@@ -176,20 +193,6 @@ ITEM and ARGS are passed to `org-srs-item-marker' to locate the review item."
     (org-back-to-heading)
     (cl-assert (looking-at org-heading-regexp))
     (org-get-priority (match-string-no-properties 0))))
-
-(defun org-srs-item-last-review-time (&rest args)
-  "Return the last review time for the review item specified by ARGS."
-  (if args
-      (org-srs-item-with-current args
-        (org-srs-item-last-review-time))
-    (save-excursion
-      (org-srs-table-goto-starred-line)
-      (forward-line -1)
-      (org-srs-timestamp-time (org-srs-table-field 'timestamp)))))
-
-(defun org-srs-item-interval (&rest args)
-  "Return the interval of the review item specified by ARGS as seconds."
-  (org-srs-time-difference (apply #'org-srs-item-due-time args) (apply #'org-srs-item-last-review-time args)))
 
 (defun org-srs-item-repeat (item &rest args)
   "Repeat the review ITEM with ARGS and update the review log."

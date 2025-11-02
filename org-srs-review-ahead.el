@@ -59,11 +59,8 @@
 
 ARGS are passed to `org-srs-review-start' as is."
   (interactive)
-  (let ((today (org-srs-time-today))
-        (interval-cache (make-hash-table :test #'equal)))
-    (cl-flet* ((org-srs-item-interval (&rest args)
-                 (or #1=(gethash args interval-cache) (setf #1# (apply #'org-srs-item-interval args))))
-               (seconds-days (seconds)
+  (let ((today (org-srs-time-today)))
+    (cl-flet* ((seconds-days (seconds)
                  (truncate seconds (* 60 60 24)))
                (item-due-days (&optional item)
                  (seconds-days (org-srs-time-difference (apply #'org-srs-item-due-time item) today)))
