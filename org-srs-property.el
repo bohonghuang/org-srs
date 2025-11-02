@@ -161,5 +161,29 @@ are temporarily bound to their current values."
     ((and (pred symbolp) (or (and 't (let group 'org-srs)) group))
      `(funcall (org-srs-property-thunk-with-saved-properties (lambda () . ,body) (org-srs-property-group-members ',group))))))
 
+(defun org-srs-property-call-without-local-variables (thunk variables)
+  "Execute THUNK with VARIABLES temporarily unbound locally."
+  (let* ((buffer (current-buffer))
+         (variables (with-current-buffer buffer
+                      (cl-loop for variable in variables
+                               when (local-variable-p variable)
+                               collect (cons variable (buffer-local-value variable buffer))
+                               and do (kill-local-variable variable)))))
+    (unwind-protect (funcall thunk)
+      (with-current-buffer buffer
+        (cl-loop for (variable . value) in variables
+                 unless (local-variable-p variable)
+                 do (set (make-local-variable variable) value))))))
+
+(defmacro org-srs-property-without-local-variables (variables &rest body)
+  "Temporarily unbind VARIABLES locally while executing BODY.
+
+This is mainly used to work around the behavior of Emacs, where when a variable
+is locally bound in a buffer, using `let' dynamic binding on that variable and
+then switching buffers within the `let' body results in the `let' binding being
+ignored."
+  (declare (indent 1))
+  `(org-srs-property-call-without-local-variables (lambda () . ,body) ',variables))
+
 (provide 'org-srs-property)
 ;;; org-srs-property.el ends here

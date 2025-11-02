@@ -67,10 +67,11 @@
         (let ((org-srs-reviewing-p (org-srs-reviewing-p)))
           (prog2 (let ((org-srs-review-rating rating))
                    (run-hooks 'org-srs-review-before-rate-hook))
-              (let ((org-srs-review-item item))
-                (org-srs-item-with-current item
-                  (org-srs-table-goto-starred-line)
-                  (apply #'org-srs-item-repeat (cl-nth-value 0 (org-srs-item-at-point)) (when rating (list :rating rating)))))
+              (org-srs-property-without-local-variables (org-srs-review-item)
+                (let ((org-srs-review-item item))
+                  (org-srs-item-with-current item
+                    (org-srs-table-goto-starred-line)
+                    (apply #'org-srs-item-repeat (cl-nth-value 0 (org-srs-item-at-point)) (when rating (list :rating rating))))))
             (let ((org-srs-review-rating rating))
               (run-hooks 'org-srs-review-after-rate-hook)
               (run-hooks 'org-srs-review-continue-hook))))
