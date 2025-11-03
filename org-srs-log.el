@@ -81,9 +81,11 @@ Return the updated parameters if successful."
             args (cl-loop for arg in args
                           if (consp arg)
                           collect arg
-                          and nconc (when-let ((field (org-srs-table-ensure-read-field (org-srs-table-field (car arg)))))
-                                      (list (cons (car arg) field)))
-                          and do (setf (org-srs-table-field (car arg)) (prin1-to-string (cdr arg) t))
+                          and when (org-srs-table-goto-column (car arg))
+                          nconc (when-let ((field (org-srs-table-ensure-read-field (org-srs-table-field))))
+                                  (list (cons (car arg) field)))
+                          and do (setf (org-srs-table-field) (prin1-to-string (cdr arg) t))
+                          end
                           else if (eq arg t)
                           nconc (save-excursion
                                   (forward-line -1)

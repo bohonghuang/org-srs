@@ -60,7 +60,7 @@
 (defvar org-srs-review-after-rate-hook nil
   "Hook run after a review item has been rated.")
 
-(defun org-srs-review-rate (rating &rest args)
+(cl-defun org-srs-review-rate (&optional (rating nil ratingp) &rest args)
   "Rate the current review item specified by ARGS with RATING."
   (let ((item (or args org-srs-review-item)))
     (if org-srs-review-item
@@ -71,7 +71,7 @@
                 (let ((org-srs-review-item item))
                   (org-srs-item-with-current item
                     (org-srs-table-goto-starred-line)
-                    (apply #'org-srs-item-repeat (cl-nth-value 0 (org-srs-item-at-point)) (when rating (list :rating rating))))))
+                    (apply #'org-srs-item-repeat (cl-nth-value 0 (org-srs-item-at-point)) (when ratingp (list :rating rating))))))
             (let ((org-srs-review-rating rating))
               (run-hooks 'org-srs-review-after-rate-hook)
               (run-hooks 'org-srs-review-continue-hook))))
