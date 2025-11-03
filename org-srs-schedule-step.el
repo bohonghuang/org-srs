@@ -140,8 +140,9 @@
         (org-srs-item-with-current org-srs-review-item
           (org-srs-table-goto-starred-line)
           (org-srs-property-let (org-srs-schedule-step-learning-steps org-srs-schedule-step-relearning-steps)
-            (org-srs-table-with-temp-buffer
-              (setf (org-srs-table-field 'timestamp) (org-srs-schedule-step-due-timestamp))))))
+            (when (or (org-srs-schedule-step-learning-steps) (org-srs-schedule-step-relearning-steps))
+              (org-srs-table-with-temp-buffer
+                (setf (org-srs-table-field 'timestamp) (org-srs-schedule-step-due-timestamp)))))))
     (setf (org-srs-table-field 'timestamp) (org-srs-schedule-step-due-timestamp))))
 
 (add-hook 'org-srs-review-after-rate-hook #'org-srs-schedule-step-update-due-timestamp -30)

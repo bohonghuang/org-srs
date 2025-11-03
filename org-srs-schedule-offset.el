@@ -109,8 +109,9 @@
           (org-srs-item-with-current org-srs-review-item
             (org-srs-table-goto-starred-line)
             (org-srs-property-let (org-srs-schedule-offset-learn-ahead-time-p)
-              (org-srs-table-with-temp-buffer
-                (setf (org-srs-table-field 'timestamp) (org-srs-schedule-offset-learn-ahead-due-timestamp timestamp-due)))))))
+              (when (org-srs-schedule-offset-learn-ahead-time-p)
+                (org-srs-table-with-temp-buffer
+                  (setf (org-srs-table-field 'timestamp) (org-srs-schedule-offset-learn-ahead-due-timestamp timestamp-due))))))))
     (setf (org-srs-table-field 'timestamp) (org-srs-schedule-offset-learn-ahead-due-timestamp timestamp-due))))
 
 (add-hook 'org-srs-review-after-rate-hook #'org-srs-schedule-offset-update-due-timestamp -10)

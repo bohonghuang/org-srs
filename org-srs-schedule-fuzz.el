@@ -112,9 +112,10 @@
       (when (symbol-value 'org-srs-review-rating)
         (org-srs-item-with-current org-srs-review-item
           (org-srs-table-goto-starred-line)
-          (org-srs-property-let (org-srs-schedule-fuzz-ranges org-srs-schedule-fuzz-unit)
-            (org-srs-table-with-temp-buffer
-              (setf (org-srs-table-field 'timestamp) (org-srs-schedule-fuzz-due-timestamp))))))
+          (org-srs-property-let (org-srs-schedule-fuzz-ranges org-srs-schedule-fuzz-unit org-srs-schedule-fuzz-interval)
+            (when (org-srs-schedule-fuzz-ranges)
+              (org-srs-table-with-temp-buffer
+                (setf (org-srs-table-field 'timestamp) (org-srs-schedule-fuzz-due-timestamp)))))))
     (setf (org-srs-table-field 'timestamp) (org-srs-schedule-fuzz-due-timestamp))))
 
 (add-hook 'org-srs-review-after-rate-hook #'org-srs-schedule-fuzz-update-due-timestamp -20)
