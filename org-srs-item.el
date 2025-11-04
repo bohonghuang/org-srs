@@ -159,7 +159,7 @@ ITEM and ARGS are passed to `org-srs-item-marker' to locate the review item."
                repeat (1- n)))))
 
 (defun org-srs-item-due-timestamp (&rest args)
-  "Return the due timestamp string for the review item specified by ARGS."
+  "Get the due timestamp of the review item specified by ARGS."
   (cl-first (apply #'org-srs-item-due-timestamps 1 args)))
 
 (cl-defmethod (setf org-srs-item-due-timestamp) (value &rest args)
@@ -176,8 +176,12 @@ ITEM and ARGS are passed to `org-srs-item-marker' to locate the review item."
   (mapcar #'org-srs-timestamp-time (apply #'org-srs-item-due-timestamps n args)))
 
 (defun org-srs-item-due-time (&rest args)
-  "Return the due time value for the review item specified by ARGS."
+  "Get the due time of the review item specified by ARGS."
   (cl-first (apply #'org-srs-item-due-times 1 args)))
+
+(cl-defmethod (setf org-srs-item-due-time) (value &rest args)
+  "Set the due time of the review item specified by ARGS to VALUE."
+  (apply #'\(setf\ org-srs-item-due-timestamp\) (org-srs-timestamp value) args))
 
 (defun org-srs-item-last-review-time (&rest args)
   "Return the last review time for the review item specified by ARGS."

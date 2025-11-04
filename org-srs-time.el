@@ -79,6 +79,14 @@ PREFIX is used for generating function names."
 
 (org-srs-time-define-comparators)
 
+(defun org-srs-time-min (&rest args)
+  "Return the earliest time among ARGS."
+  (cl-reduce (lambda (time-a time-b) (if (org-srs-time> time-a time-b) time-b time-a)) args))
+
+(defun org-srs-time-max (&rest args)
+  "Return the latest time among ARGS."
+  (cl-reduce (lambda (time-a time-b) (if (org-srs-time> time-a time-b) time-a time-b)) args))
+
 (defun org-srs-time-truncate-hms (time)
   "Truncate the hours, minutes and seconds from TIME."
   (let* ((time (decode-time time))

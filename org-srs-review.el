@@ -281,17 +281,21 @@ to review."
 
 ARGS specifies the item to postpone. If ARGS is nil, the current review item is
 used."
-  (interactive (list (read-from-minibuffer "Interval: " (prin1-to-string '(1 :day)) nil t)))
-  (setf args (or args (bound-and-true-p org-srs-review-item) (cl-multiple-value-list (org-srs-item-at-point))))
-  (org-srs-item-with-current args
-    (setf (org-srs-item-due-timestamp) (cl-etypecase time
-                                         (org-srs-timestamp time)
-                                         (list (apply #'org-srs-timestamp+
-                                                      (org-srs-timestamp-max
-                                                       (org-srs-item-due-timestamp)
-                                                       (org-srs-timestamp-now))
-                                                      time)))))
-  (org-srs-review-next))
+  (interactive (let ((item (bound-and-true-p org-srs-review-item)))
+                 (cons (org-read-date nil t nil nil (org-srs-time-max (apply #'org-srs-item-due-time item) (org-srs-time-now))) item)))
+  (if args
+      (org-srs-item-with-current args
+        (org-srs-review-postpone time))
+    (let* ((due-time (org-srs-item-due-time))
+           (now (org-srs-time-now))
+           (time (cl-etypecase time
+                   (org-srs-timestamp (org-srs-timestamp-time time))
+                   (list (if (cl-every #'integerp time) time (apply #'org-srs-time+ (org-srs-time-max due-time now) time))))))
+      (cl-assert (org-srs-time> time due-time))
+      (cl-assert (org-srs-time> time now))
+      (setf (org-srs-item-due-time) time)))
+  (when (and (called-interactively-p 'any) (org-srs-reviewing-p))
+    (org-srs-review-next)))
 
 ;;;###autoload
 (defun org-srs-review-suspend ()
