@@ -124,7 +124,7 @@ CALLBACK is called with the data of each deleted node."
   (let ((seconds-a (org-srs-time-seconds (car a)))
         (seconds-b (org-srs-time-seconds (car b))))
     (if (= seconds-a seconds-b)
-        (< (sxhash-eq (cdr a)) (sxhash-eq (cdr b)))
+        (< (sxhash-equal (cdr a)) (sxhash-equal (cdr b)))
       (< seconds-a seconds-b))))
 
 (cl-defun org-srs-review-cache-pending-queue (predicate &optional (cache (org-srs-review-cache)))
@@ -132,25 +132,69 @@ CALLBACK is called with the data of each deleted node."
   (or #1=(alist-get predicate (org-srs-review-cache-pending cache) nil nil #'equal)
       (setf #1# (avl-tree-create #'org-srs-review-cache-pending<))))
 
+(defmacro org-srs-review-cache-ensure-gethash (key hash-table &optional default)
+  "Get the value from HASH-TABLE for KEY, setting it to DEFAULT if not found."
+  (cl-once-only (key hash-table)
+    (cl-with-gensyms (value null)
+      `(let ((,value (gethash ,key ,hash-table ',null)))
+         (if (eq ,value ',null)
+             (setf (gethash ,key ,hash-table ',null) ,default)
+           ,value)))))
+
+(defun org-srs-review-cache-query-predicate-due (predicate)
+  "Extract the due predicate from PREDICATE if it contains a due clause.
+
+Return the due predicate and the remaining predicate as multiple values."
+  (pcase predicate
+    ((or #1=(and (or 'due `(due . ,_)) due) `(and ,#1# . ,rest))
+     (cl-values (ensure-list due) `(and . ,rest)))
+    (_ (cl-values nil predicate))))
+
 (defun org-srs-review-cache-query-predicate-due-time (predicate)
   "Extract the due time from PREDICATE if it contains a due clause."
-  (pcase predicate
-    (`(and ,(or 'due `(due . ,args)) . ,_)
-     (cl-destructuring-bind (&optional (time (org-srs-time-now))) args time))))
+  (pcase (cl-nth-value 0 (org-srs-review-cache-query-predicate-due predicate))
+    (`(due . ,args) (cl-destructuring-bind (&optional (time (org-srs-time-now))) args time))))
+
+(defun org-srs-review-cache-query-predicate-function ()
+  "Return a closure that acts as `org-srs-query-predicate' but reuses some results."
+  (let ((predicate-cache (make-hash-table :test #'equal)) (funcall-predicate-cache (make-hash-table :test #'equal)))
+    (cl-labels ((funcall-predicate (predicate)
+                  (pcase predicate
+                    (`(and . ,predicates) (cl-loop for predicate in predicates always (funcall-predicate predicate)))
+                    (`(or . ,predicates) (cl-loop for predicate in predicates thereis (funcall-predicate predicate)))
+                    (`(not ,predicate) (not (funcall-predicate predicate)))
+                    (predicate
+                     (org-srs-review-cache-ensure-gethash
+                      predicate funcall-predicate-cache
+                      (funcall (org-srs-review-cache-ensure-gethash
+                                predicate predicate-cache (org-srs-query-predicate predicate))))))))
+      (lambda (&optional predicate)
+        (if predicate (if (funcall-predicate predicate) #'always #'ignore) (clrhash funcall-predicate-cache))))))
+
+(defmacro org-srs-review-cache-with-query-predicate-cache (&rest body)
+  "Execute BODY with `org-srs-query-predicate' rebound to cache predicate results."
+  (declare (indent 0))
+  (cl-with-gensyms (org-srs-query-predicate args)
+    `(let ((,org-srs-query-predicate (org-srs-review-cache-query-predicate-function)))
+       (cl-flet ((org-srs-query-predicate (&rest ,args) (apply ,org-srs-query-predicate ,args)))
+         ,@body))))
 
 (cl-defun org-srs-review-cache-update-pending-1 (&optional (cache (org-srs-review-cache)))
   "Dequeue due pending review items and update cached query results in CACHE."
-  (cl-loop with queries = (org-srs-review-cache-queries cache)
-           for (predicate . tree) in (org-srs-review-cache-pending cache)
-           for predicate-function = (org-srs-query-predicate predicate)
-           for due-time = (org-srs-review-cache-query-predicate-due-time predicate)
-           do (org-srs-review-cache-avl-tree-delete-range
-               tree (cons due-time most-positive-fixnum)
-               :callback (lambda (due-time-item)
-                           (let ((item (cdr due-time-item)))
-                             (org-srs-item-with-current item
-                               (when (funcall predicate-function)
-                                 (setf (gethash item (alist-get predicate queries nil nil #'equal)) t))))))))
+  (org-srs-review-cache-with-query-predicate-cache
+    (cl-loop with queries = (org-srs-review-cache-queries cache)
+             for (due-predicate . tree) in (org-srs-review-cache-pending cache)
+             for due-time = (org-srs-review-cache-query-predicate-due-time due-predicate)
+             do (org-srs-review-cache-avl-tree-delete-range
+                 tree (cons due-time most-positive-fixnum)
+                 :callback (lambda (due-time-item)
+                             (let ((item (cdr due-time-item)))
+                               (org-srs-item-with-current item
+                                 (cl-loop initially (org-srs-query-predicate)
+                                          for (predicate . items) in queries
+                                          when (equal (cl-nth-value 0 (org-srs-review-cache-query-predicate-due predicate)) due-predicate)
+                                          if (funcall (org-srs-query-predicate predicate)) do (setf (gethash item items) t)
+                                          else do (cl-assert (not (gethash item items)))))))))))
 
 (cl-defun org-srs-review-cache-update-pending (&optional (cache (org-srs-review-cache)))
   "Update pending review items and cached query results in CACHE if necessary."
@@ -205,15 +249,6 @@ from a large set of review items."
 (defun org-srs-review-cache-active-p ()
   "Return non-nil if review caching is active in the current review session."
   (and (org-srs-reviewing-p) (org-srs-review-cache-p)))
-
-(defmacro org-srs-review-cache-ensure-gethash (key hash-table &optional default)
-  "Get the value from HASH-TABLE for KEY, setting it to DEFAULT if not found."
-  (cl-once-only (key hash-table)
-    (cl-with-gensyms (value null)
-      `(let ((,value (gethash ,key ,hash-table ',null)))
-         (if (eq ,value ',null)
-             (setf (gethash ,key ,hash-table ',null) ,default)
-           ,value)))))
 
 (defun org-srs-review-cache-item (&rest args)
   "Return the full specification for the review item specified by ARGS as a list."
@@ -280,23 +315,19 @@ from a large set of review items."
         (let ((result (org-srs-review-cache-query predicate source)))
           (if (eq result org-srs-review-cache-null)
               (let* ((cache (or (org-srs-review-cache) (setf (org-srs-review-cache) (make-org-srs-review-cache :source source))))
-                     (query (if-let ((due-time (org-srs-review-cache-query-predicate-due-time predicate)))
-                                (pcase-exhaustive predicate
-                                  (`(and ,(and (or 'due `(due . ,_)) first-predicate) . ,rest-predicates)
-                                   (let ((tree (org-srs-review-cache-pending-queue predicate)))
-                                     (cl-assert (avl-tree-empty tree))
-                                     (cl-flet* ((cache-item ()
-                                                  (nconc (cl-multiple-value-list (org-srs-item-at-point)) (list (current-buffer))))
-                                                (cache-marker (&optional (item (cache-item)))
-                                                  (setf (gethash item (org-srs-review-cache-markers cache)) (point-marker)))
-                                                (cache-due-time (&aux (item (cache-item)))
-                                                  (avl-tree-enter
-                                                   tree (cons (org-srs-item-due-time) item)
-                                                   (eval-when-compile (lambda (&rest _) (cl-assert nil))))
-                                                  (cache-marker item)
-                                                  nil))
-                                       `(and ,@rest-predicates (or (and ,first-predicate ,#'cache-marker) ,#'cache-due-time))))))
-                              predicate)))
+                     (query (cl-multiple-value-bind (due-predicate rest-predicate) (org-srs-review-cache-query-predicate-due predicate)
+                              (if due-predicate
+                                  (let ((tree (org-srs-review-cache-pending-queue due-predicate)))
+                                    (cl-flet* ((cache-item ()
+                                                 (nconc (cl-multiple-value-list (org-srs-item-at-point)) (list (current-buffer))))
+                                               (cache-marker (&optional (item (cache-item)))
+                                                 (setf (gethash item (org-srs-review-cache-markers cache)) (point-marker)))
+                                               (cache-due-time (&aux (item (cache-item)))
+                                                 (avl-tree-enter tree (cons (org-srs-item-due-time) item))
+                                                 (cache-marker item)
+                                                 nil))
+                                      `(and ,rest-predicate (or (and ,due-predicate ,#'cache-marker) ,#'cache-due-time))))
+                                rest-predicate))))
                 (setf (org-srs-review-cache-query predicate source) (funcall fun query source)))
             result))
       (funcall fun predicate source))))
@@ -316,21 +347,19 @@ from a large set of review items."
   "Update the review cache for the updated review item specified by ARGS."
   (when-let ((cache (org-srs-review-cache))
              (item (apply #'org-srs-review-cache-item (or args (cl-multiple-value-list (org-srs-item-at-point))))))
-    (org-srs-item-with-current item
-      (cl-loop with due-time = (cl-first (setf (gethash item (org-srs-review-cache-due-times cache)) (org-srs-item-due-times org-srs-review-cache-due-time-count)))
-               for (predicate . items) in (org-srs-review-cache-queries cache)
-               for (all-satisfied-p . rest-satisfied-p)
-               = (pcase predicate
-                   (`(and ,(and (or 'due `(due . ,_)) first-predicate) . ,rest-predicates)
-                    (when (funcall (org-srs-query-predicate `(and . ,rest-predicates)))
-                      (cons (funcall (org-srs-query-predicate first-predicate)) t)))
-                   (_ (cons (funcall (org-srs-query-predicate predicate)) nil)))
-               if all-satisfied-p do (setf (gethash item items) t)
-               else do (remhash item items)
-               when (and rest-satisfied-p (not all-satisfied-p))
-               do (avl-tree-enter
-                   (org-srs-review-cache-pending-queue predicate) (cons due-time item)
-                   (eval-when-compile (lambda (&rest _) (cl-assert nil))))))))
+    (org-srs-review-cache-with-query-predicate-cache
+      (org-srs-item-with-current item
+        (cl-loop with due-time = (cl-first (setf (gethash item (org-srs-review-cache-due-times cache)) (org-srs-item-due-times org-srs-review-cache-due-time-count)))
+                 for (predicate . items) in (org-srs-review-cache-queries cache)
+                 for (due-predicate rest-predicate) = (cl-multiple-value-list (org-srs-review-cache-query-predicate-due predicate))
+                 for (all-satisfied-p . rest-satisfied-p) = (if due-predicate
+                                                                (when (funcall (org-srs-query-predicate rest-predicate))
+                                                                  (cons (funcall (org-srs-query-predicate due-predicate)) t))
+                                                              (cons (funcall (org-srs-query-predicate rest-predicate)) nil))
+                 if all-satisfied-p do (setf (gethash item items) t)
+                 else do (remhash item items)
+                 when (and rest-satisfied-p (not all-satisfied-p))
+                 do (avl-tree-enter (org-srs-review-cache-pending-queue due-predicate) (cons due-time item)))))))
 
 (defvar org-srs-review-item)
 
