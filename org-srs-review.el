@@ -63,6 +63,9 @@
   (if (boundp 'org-srs-reviewing-p) org-srs-reviewing-p
     (cl-loop for predicate in org-srs-reviewing-predicates thereis (funcall predicate))))
 
+(defvar org-srs-review-start-hook nil
+  "Hook run when a review session starts.")
+
 (defvar org-srs-review-continue-hook nil
   "Hook run to continue reviewing after completing an item review.")
 
@@ -254,7 +257,10 @@ to review."
             'org-srs-review)
            50))
       (let ((org-srs-reviewing-p (when (boundp 'org-srs-reviewing-p) (setf org-srs-reviewing-p nil))))
-        (run-hooks 'org-srs-review-finish-hook)))))
+        (run-hooks 'org-srs-review-finish-hook)))
+    (when (and (org-srs-reviewing-p) (not (bound-and-true-p org-srs-reviewing-p)))
+      (let ((org-srs-reviewing-p t))
+        (run-hooks 'org-srs-review-start-hook)))))
 
 (defun org-srs-review-message-review-done ()
   "Display a message in the minibuffer when the current review session finishes."
