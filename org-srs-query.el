@@ -135,6 +135,15 @@ ARGS are arguments to be passed to construct the predicate."))
             (let ((time (org-srs-timestamp-time timestamp)))
               (and (time-less-p from time) (or (null to) (time-less-p time to))))))))))
 
+(defun org-srs-query-predicate-rating (rating)
+  "Return a predicate that matches review items whose last rating is RATING."
+  (lambda ()
+    (save-excursion
+      (when (re-search-forward org-srs-log-latest-timestamp-regexp (org-srs-table-end))
+        (forward-line -1)
+        (when (org-srs-table-goto-column 'rating)
+          (eq (org-srs-table-ensure-read-field (org-srs-table-field)) rating))))))
+
 (defun org-srs-query-predicate-reviewed (&rest args)
   "Return a predicate that matches reviewed items.
 
