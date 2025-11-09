@@ -318,11 +318,9 @@ from a large set of review items."
                      (query (cl-multiple-value-bind (due-predicate rest-predicate) (org-srs-review-cache-query-predicate-due predicate)
                               (if due-predicate
                                   (let ((tree (org-srs-review-cache-pending-queue due-predicate)))
-                                    (cl-flet* ((cache-item ()
-                                                 (nconc (cl-multiple-value-list (org-srs-item-at-point)) (list (current-buffer))))
-                                               (cache-marker (&optional (item (cache-item)))
+                                    (cl-flet* ((cache-marker (&optional (item (org-srs-review-cache-item)))
                                                  (setf (gethash item (org-srs-review-cache-markers cache)) (point-marker)))
-                                               (cache-due-time (&aux (item (cache-item)))
+                                               (cache-due-time (&aux (item (org-srs-review-cache-item)))
                                                  (avl-tree-enter tree (cons (org-srs-item-due-time) item))
                                                  (cache-marker item)
                                                  nil))
@@ -345,8 +343,7 @@ from a large set of review items."
 
 (defun org-srs-review-cache-updated-item (&rest args)
   "Update the review cache for the updated review item specified by ARGS."
-  (when-let ((cache (org-srs-review-cache))
-             (item (apply #'org-srs-review-cache-item (or args (cl-multiple-value-list (org-srs-item-at-point))))))
+  (when-let ((cache (org-srs-review-cache)) (item (apply #'org-srs-review-cache-item args)))
     (org-srs-review-cache-with-query-predicate-cache
       (org-srs-item-with-current item
         (cl-loop with due-time = (cl-first (setf (gethash item (org-srs-review-cache-due-times cache)) (org-srs-item-due-times org-srs-review-cache-due-time-count)))
@@ -362,6 +359,18 @@ from a large set of review items."
                  do (avl-tree-enter (org-srs-review-cache-pending-queue due-predicate) (cons due-time item)))))))
 
 (defvar org-srs-review-item)
+
+(cl-defun org-srs-review-cache-before-rate (&optional (item org-srs-review-item))
+  "Update the review cache before rating ITEM."
+  (when (org-srs-review-cache-p)
+    (cl-loop with item-due-time = (apply #'org-srs-item-due-time item)
+             with item-element = (cons item-due-time (apply #'org-srs-review-cache-item item))
+             for (due-predicate . tree) in (org-srs-review-cache-pending (org-srs-review-cache))
+             for due-time = (org-srs-review-cache-query-predicate-due-time due-predicate)
+             when (org-srs-time< due-time item-due-time)
+             do (avl-tree-delete tree item-element))))
+
+(add-hook 'org-srs-review-before-rate-hook #'org-srs-review-cache-before-rate)
 
 (cl-defun org-srs-review-cache-after-rate (&optional (item org-srs-review-item))
   "Update the review cache after rating ITEM."
@@ -396,7 +405,7 @@ from a large set of review items."
           ((or list symbol)
            (cl-labels ((predicate (&rest args &aux (cache (org-srs-review-cache)))
                          (if-let ((items (cdr (cl-assoc desc (org-srs-review-cache-queries cache) :test #'equal)))
-                                  (item (or args (cl-multiple-value-call #'org-srs-review-cache-item (org-srs-item-at-point)))))
+                                  (item (apply #'org-srs-review-cache-item args)))
                              (gethash item items)
                            (cl-assert (org-srs-review-cache-active-p))
                            (org-srs-query desc (org-srs-review-cache-source cache))
