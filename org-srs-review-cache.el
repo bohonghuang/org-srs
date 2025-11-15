@@ -87,10 +87,13 @@ MARKERS is a hash table caching review items to their markers."
   "Clear the current review cache."
   (setf (org-srs-review-cache) nil))
 
-(cl-defun org-srs-review-cache-avl-tree-delete-range (tree data &key (callback #'ignore) (direction '<=))
+(cl-defun org-srs-review-cache-avl-tree-delete-range (tree data &key (callback #'ignore) (direction '<=) (keep-balanced-p t))
   "Delete nodes in TREE that satisfy the comparison with DATA in DIRECTION.
 CALLBACK is called with the data of each deleted node."
-  (let ((compare-function (avl-tree--cmpfun tree)) (root (avl-tree--dummyroot tree)))
+  (let ((callback (if keep-balanced-p
+                      (let ((data-to-delete nil)) (lambda (data) (funcall callback data) (push data data-to-delete)))
+                    (lambda (data) (funcall callback data) nil)))
+        (compare-function (avl-tree--cmpfun tree)))
     (cl-multiple-value-bind (compare-function node-left node-right dir-left dir-right)
         (cl-ecase direction
           (<= (cl-values compare-function #'avl-tree--node-left #'avl-tree--node-right 0 1))
@@ -115,9 +118,9 @@ CALLBACK is called with the data of each deleted node."
                          (t
                           (recurse br dir-right)
                           (traverse (node-left br))
-                          (funcall callback (node-data br))
-                          (setf br (node-right br)))))))
-          (recurse root 0))))))
+                          (or (funcall callback (node-data br)) (ignore (setf br (node-right br)))))))))
+          (cl-loop for data in (recurse (avl-tree--dummyroot tree) 0)
+                   do (cl-assert (avl-tree-delete tree data))))))))
 
 (defun org-srs-review-cache-pending< (a b)
   "Compare two pending review items A and B for ordering in pending queues."
