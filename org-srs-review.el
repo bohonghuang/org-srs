@@ -92,8 +92,16 @@
   :group 'org-srs-review
   :type 'boolean)
 
+(org-srs-property-defcustom org-srs-review-learn-ahead-p t
+  "When to review items before their scheduled due time."
+  :group 'org-srs-review
+  :type '(choice
+          (const :tag "Always" always)
+          (const :tag "Auto " t)
+          (const :tag "Never" nil)))
+
 (org-srs-property-defcustom org-srs-review-learn-ahead-limit #'org-srs-time-tomorrow
-  "Maximum advance time for due items when no items are available for review."
+  "Maximum advance time for reviewing items before their scheduled due time."
   :group 'org-srs-review
   :type 'sexp)
 
@@ -167,9 +175,10 @@ The behavior can be fine-tuned through various customizable options in the
                                 'old))
                             ,(org-srs-review-order-review)))))
     (cl-flet ((ahead (strategy)
-                (if-let ((ahead-time (org-srs-review-learn-ahead-time)))
-                    `(or ,strategy (ahead ,strategy ,ahead-time))
-                  strategy))
+                (cl-ecase (org-srs-review-learn-ahead-p)
+                  ((always) `(or reviewing (ahead (or (difference ,strategy reviewing) reviewing) ,(org-srs-review-learn-ahead-time))))
+                  ((t) `(or ,strategy (ahead ,strategy ,(org-srs-review-learn-ahead-time))))
+                  ((nil) strategy)))
               (limit-total-reviews (strategy)
                 (if (org-srs-review-new-items-ignore-review-limit-p)
                     strategy
@@ -221,13 +230,6 @@ The behavior can be fine-tuned through various customizable options in the
                 (root (project-root project)))
       (cons 'project root)))
    :key #'cdr))
-
-(org-srs-property-defcustom org-srs-review-learn-ahead-offset-time-p #'org-srs-time-today-p
-  "Whether to offset the scheduled time by the time difference of learning ahead."
-  :group 'org-srs-review
-  :type '(choice (const :tag "Yes" t)
-                 (const :tag "No" nil)
-                 (const :tag "If scheduled for today" org-srs-time-today-p)))
 
 (defun org-srs-review-source-dwim ()
   "Return the recommended review source based on the current context.
