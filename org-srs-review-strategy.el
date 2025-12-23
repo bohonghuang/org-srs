@@ -90,14 +90,45 @@
 
 (defun org-srs-review-strategy-intersection (&rest args)
   "Return the intersection of multiple review item lists in ARGS."
+  (org-srs-query-with-loop
+    (cl-loop with table = (make-hash-table :test #'equal)
+             and length = (length args)
+             initially (cl-loop for items in args
+                                do (cl-loop for item in items
+                                            do (cl-incf (gethash item table 0) 1)))
+             for item being the hash-key of table using (hash-value count)
+             when (= count length)
+             collect item)))
+
+(defun org-srs-review-strategy-multiply (&rest args)
+  "Like `org-srs-review-strategy-intersection', but preserve item orders in ARGS."
+  (org-srs-query-with-loop
+    (cl-loop with table = (make-hash-table :test #'equal)
+             and length = (length args)
+             initially (cl-loop for items in args
+                                do (cl-loop for item in items
+                                            do (cl-incf (gethash item table 0) 1)))
+             for items in args
+             nconc (cl-loop for item in items
+                            when (eql (gethash item table) length)
+                            collect item and do (remhash item table)))))
+
+(defun org-srs-review-strategy-union (&rest args)
+  "Return the union of multiple review item lists in ARGS."
   (cl-loop with table = (make-hash-table :test #'equal)
            for items in args
-           do (cl-loop for item in items do (cl-incf (gethash item table 0) 1))
-           finally (cl-return
-                    (cl-loop with length = (length args)
-                             for item being the hash-key of table using (hash-value count)
-                             when (= count length)
-                             collect item))))
+           do (cl-loop for item in items do (setf (gethash item table) t))
+           finally (cl-return (hash-table-keys table))))
+
+(defun org-srs-review-strategy-append (&rest args)
+  "Like `org-srs-review-strategy-union', but preserve item orders in ARGS."
+  (org-srs-query-with-loop
+    (cl-loop with table = (make-hash-table :test #'equal)
+             for items in args
+             nconc (cl-loop for item in items
+                            unless (gethash item table)
+                            do (setf (gethash item table) t)
+                            and collect item))))
 
 (defun org-srs-review-strategy-difference (&rest args)
   "Return review items in ARGS' first list excluding those in the rest."
@@ -106,6 +137,17 @@
            for items in (cl-rest args)
            do (cl-loop for item in items do (remhash item table))
            finally (cl-return (hash-table-keys table))))
+
+(defun org-srs-review-strategy-subtract (&rest args)
+  "Like `org-srs-review-strategy-difference', but preserve item orders in ARGS."
+  (org-srs-query-with-loop
+    (cl-loop with table = (make-hash-table :test #'equal)
+             initially (cl-loop for items in (cl-rest args)
+                                do (cl-loop for item in items
+                                            do (setf (gethash item table) t)))
+             for item in (cl-first args)
+             unless (gethash item table)
+             collect item)))
 
 (cl-defmethod org-srs-review-strategy-items (state (_strategy (eql 'union)) &rest strategies)
   "Method to return items in STATE matching any of STRATEGIES using logical union."
@@ -118,6 +160,24 @@
 (cl-defmethod org-srs-review-strategy-items (state (_strategy (eql 'difference)) &rest strategies)
   "Method to return items in STATE matching STRATEGIES' first excluding the rest."
   (apply #'org-srs-review-strategy-difference (mapcar (apply-partially #'org-srs-review-strategy-items state) strategies)))
+
+(cl-defmethod org-srs-review-strategy-items (state (_strategy (eql '+)) &rest strategies)
+  "Method to return items in STATE matching any of STRATEGIES using logical union.
+
+Like strategy `union', but preserve order of items in STRATEGIES."
+  (apply #'org-srs-review-strategy-append (mapcar (apply-partially #'org-srs-review-strategy-items state) strategies)))
+
+(cl-defmethod org-srs-review-strategy-items (state (_strategy (eql '*)) &rest strategies)
+  "Method to return items in STATE common to STRATEGIES using logical intersection.
+
+Like strategy `intersection', but preserve orders of items in STRATEGIES."
+  (apply #'org-srs-review-strategy-multiply (mapcar (apply-partially #'org-srs-review-strategy-items state) strategies)))
+
+(cl-defmethod org-srs-review-strategy-items (state (_strategy (eql '-)) &rest strategies)
+  "Method to return items in STATE matching STRATEGIES' first excluding the rest.
+
+Like strategy `difference', but preserve orders of items in STRATEGIES."
+  (apply #'org-srs-review-strategy-subtract (mapcar (apply-partially #'org-srs-review-strategy-items state) strategies)))
 
 (cl-defmethod org-srs-review-strategy-items ((state org-srs-review-strategy-class-todo) (_strategy (eql 'or)) &rest strategies)
   "Method to return items in STATE `todo' matching any of STRATEGIES."
@@ -212,13 +272,6 @@
   (cl-destructuring-bind (strategy) args
     (org-srs-review-strategy-items 'done strategy)))
 
-(defun org-srs-review-strategy-union (&rest args)
-  "Return union of multiple review item lists in ARGS."
-  (cl-loop with table = (make-hash-table :test #'equal)
-           for items in args
-           do (cl-loop for item in items do (setf (gethash item table) t))
-           finally (cl-return (hash-table-keys table))))
-
 (cl-defmethod org-srs-review-strategy-items (state (_strategy (eql 'ahead)) &rest args)
   "Method to return items in STATE due in the future matching the strategy in ARGS."
   (cl-destructuring-bind (strategy &optional (time (org-srs-time-tomorrow))) args
@@ -236,25 +289,34 @@
             (name-b (or (buffer-file-name buffer-b) (buffer-name buffer-b))))
         (string< name-a name-b)))))
 
+(cl-defun org-srs-review-strategy-sort (items order &key (key #'identity))
+  "Sort ITEMS according to ORDER and KEY."
+  (apply
+   #'cl-sort items
+   (let ((args (pcase-exhaustive order
+                 ('position (list #'org-srs-review-strategy-item-marker< :key (apply-partially #'apply #'org-srs-item-marker)))
+                 ('due-date (list #'org-srs-time< :key (apply-partially #'apply #'org-srs-item-due-time)))
+                 ('priority (list #'> :key (apply-partially #'apply #'org-srs-item-priority)))
+                 ('interval (list #'< :key (apply-partially #'apply #'org-srs-item-interval)))
+                 ('random (list #'< :key #'sxhash-eq))
+                 (`(reverse ,order) (cl-return-from org-srs-review-strategy-sort (nreverse (org-srs-review-strategy-sort items order :key key))))
+                 (`(,(pred functionp) . ,(pred plistp)) order)
+                 ((pred functionp)
+                  (pcase-exhaustive (car (func-arity order))
+                    (2 (list order))
+                    ((or 0 1) (list #'< :key order)))))))
+     (unless (eq key #'identity)
+       (cl-callf (lambda (accessor) (lambda (object) (funcall accessor (funcall key object)))) (cl-getf (cdr args) :key)))
+     args)))
+
 (cl-defmethod org-srs-review-strategy-items (state (_strategy (eql 'sort)) &rest args)
   "Method to return sorted items in STATE matching the strategy in ARGS."
-  (cl-destructuring-bind (strategy order &rest args &aux (items (org-srs-review-strategy-items state strategy))) args
-    (cl-labels ((items (order)
-                  (apply
-                   #'cl-sort items
-                   (pcase-exhaustive order
-                     ('position (list #'org-srs-review-strategy-item-marker< :key (apply-partially #'apply #'org-srs-item-marker)))
-                     ('due-date (list #'org-srs-time< :key (apply-partially #'apply #'org-srs-item-due-time)))
-                     ('priority (list #'> :key (apply-partially #'apply #'org-srs-item-priority)))
-                     ('interval (list #'< :key (apply-partially #'apply #'org-srs-item-interval)))
-                     ('random (list #'< :key #'sxhash-eq))
-                     (`(reverse ,order) (cl-return-from items (nreverse (items order))))
-                     (`(,(pred functionp) . ,(pred plistp)) order)
-                     ((pred functionp)
-                      (pcase-exhaustive (car (func-arity order))
-                        (2 (list order))
-                        ((or 0 1) (list #'< :key order))))))))
-      (items order))))
+  (cl-destructuring-bind (strategy order &key args) args
+    (apply #'org-srs-review-strategy-sort (org-srs-review-strategy-items state strategy) order args)))
+
+(cl-defmethod org-srs-review-strategy-items (state (_strategy (eql 'sort-append)) &optional order &rest strategies)
+  "Method to sort and concatenate items in STATE from STRATEGIES by ORDER."
+  (mapcan #'identity (org-srs-review-strategy-sort (mapcar (apply-partially #'apply #'org-srs-review-strategy-items state) strategies) order :key #'cl-first)))
 
 (provide 'org-srs-review-strategy)
 ;;; org-srs-review-strategy.el ends here

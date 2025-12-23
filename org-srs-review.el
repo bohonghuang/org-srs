@@ -154,42 +154,37 @@ The learning ahead limit is determined by customizable option
 
 The behavior can be fine-tuned through various customizable options in the
 `org-srs-review' group."
-  (let ((strategy-new `(subseq
-                        (or (sort
-                             (intersection (done new) reviewing)
-                             ,(org-srs-review-order-review))
-                            (sort
-                             (limit new ,(if (org-srs-review-new-items-ignore-review-limit-p)
-                                             (org-srs-review-new-items-per-day)
-                                           (min (- (org-srs-review-max-reviews-per-day)
-                                                   (length (org-srs-review-strategy-items 'todo 'old))
-                                                   (length (org-srs-review-strategy-items 'done 'old)))
-                                                (org-srs-review-new-items-per-day))))
-                             ,(org-srs-review-order-new)))))
-        (strategy-review `(subseq
-                           (sort
-                            (union
-                             (intersection (done old) reviewing)
-                             ,(if (org-srs-review-new-items-ignore-review-limit-p)
-                                  `(limit old ,(org-srs-review-max-reviews-per-day))
-                                'old))
-                            ,(org-srs-review-order-review)))))
-    (cl-flet ((ahead (strategy)
-                (cl-ecase (org-srs-review-learn-ahead-p)
-                  ((always) `(or reviewing (ahead (or (difference ,strategy reviewing) reviewing) ,(org-srs-review-learn-ahead-time))))
-                  ((t) `(or ,strategy (ahead ,strategy ,(org-srs-review-learn-ahead-time))))
-                  ((nil) strategy)))
-              (limit-total-reviews (strategy)
-                (if (org-srs-review-new-items-ignore-review-limit-p)
-                    strategy
-                  `(or (limit ,strategy ,(org-srs-review-max-reviews-per-day)) reviewing))))
+  (let ((strategy-new `(+ (sort (* (done new) reviewing) ,(org-srs-review-order-review))
+                          (sort (limit new ,(if (org-srs-review-new-items-ignore-review-limit-p)
+                                                (org-srs-review-new-items-per-day)
+                                              (min (- (org-srs-review-max-reviews-per-day)
+                                                      (length (org-srs-review-strategy-items 'todo 'old))
+                                                      (length (org-srs-review-strategy-items 'done 'old)))
+                                                   (org-srs-review-new-items-per-day))))
+                                ,(org-srs-review-order-new))))
+        (strategy-review `(sort (+ (intersection (done old) reviewing)
+                                   ,(if (org-srs-review-new-items-ignore-review-limit-p)
+                                        `(limit old ,(org-srs-review-max-reviews-per-day))
+                                      'old))
+                                ,(org-srs-review-order-review))))
+    (cl-flet* ((ahead (strategy)
+                 `(ahead ,strategy ,(org-srs-review-learn-ahead-time)))
+               (ahead (strategy)
+                 (cl-ecase (org-srs-review-learn-ahead-p)
+                   ((always) `(or (* ,(ahead strategy) reviewing) (- ,(ahead strategy) ,(ahead 'reviewing)) (* ,(ahead strategy) ,(ahead 'reviewing))))
+                   ((t) `(or ,strategy ,(ahead strategy)))
+                   ((nil) strategy)))
+               (limit-total-reviews (strategy)
+                 (if (org-srs-review-new-items-ignore-review-limit-p)
+                     strategy
+                   `(+ (limit ,strategy ,(org-srs-review-max-reviews-per-day)) reviewing))))
       (let ((order (org-srs-review-order-new-review)))
         (cl-case order
           (new-ahead (limit-total-reviews `(or ,(ahead strategy-new) ,(ahead strategy-review))))
           (review-ahead (limit-total-reviews `(or ,(ahead strategy-review) ,(ahead strategy-new))))
-          (new-first (ahead (limit-total-reviews `(or ,strategy-new ,strategy-review))))
-          (review-first (ahead (limit-total-reviews `(or ,strategy-review ,strategy-new))))
-          (t (ahead (limit-total-reviews `(sort (union ,strategy-new ,strategy-review) ,order)))))))))
+          (new-first (ahead (limit-total-reviews `(+ ,strategy-new ,strategy-review))))
+          (review-first (ahead (limit-total-reviews `(+ ,strategy-review ,strategy-new))))
+          (t (ahead (limit-total-reviews `(sort-append ,order ,strategy-new ,strategy-review)))))))))
 
 (setf #1=(default-value 'org-srs-review-strategy) (or #1# #'org-srs-review-default-strategy))
 

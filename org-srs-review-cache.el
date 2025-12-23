@@ -45,6 +45,7 @@
 (require 'org-srs-item)
 (require 'org-srs-review)
 (require 'org-srs-review-rate)
+(require 'org-srs-review-strategy)
 (require 'org-srs-property)
 (require 'org-srs-query)
 
@@ -441,6 +442,20 @@ from a large set of review items."
 
 (define-advice org-srs-query (:around (fun &rest args) org-srs-query-predicate@org-srs-review-cache)
   (org-srs-review-cache-without-query-predicate (apply fun args)))
+
+(defvar org-srs-review-cache-strategy-items nil
+  "Dynamically bound hash table to cache items for review strategies.")
+
+(cl-defmethod org-srs-review-strategy-items :around (_state _strategy &context (org-srs-review-cache-strategy-items null) &rest _args)
+  "Bind `org-srs-review-cache-strategy-items' to a new hash table."
+  (let ((org-srs-review-cache-strategy-items (make-hash-table :test #'equal)))
+    (cl-call-next-method)))
+
+(cl-defmethod org-srs-review-strategy-items :around (state strategy &context (org-srs-review-cache-strategy-items hash-table) &rest args)
+  "Try to return cached review items in STATE matching STRATEGY with ARGS."
+  (org-srs-review-cache-ensure-gethash
+   (cl-list* org-srs-review-strategy-due-predicate state strategy args)
+   org-srs-review-cache-strategy-items (cl-call-next-method)))
 
 (provide 'org-srs-review-cache)
 ;;; org-srs-review-cache.el ends here
