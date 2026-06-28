@@ -46,6 +46,7 @@
 
 (require 'org-srs-review)
 (require 'org-srs-review-rate)
+(require 'org-srs-review-undo)
 (require 'org-srs-review-strategy)
 (require 'org-srs-review-cache)
 (require 'org-srs-review-ahead)

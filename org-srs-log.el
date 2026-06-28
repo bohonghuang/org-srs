@@ -118,7 +118,7 @@ Return the updated parameters if successful."
   (org-srs-entry-beginning-of-drawer org-srs-log-drawer-name))
 
 (cl-defun org-srs-log-hide-drawer (&optional (position (point)))
-  "Toggle the visibility of the Org-srs drawer at POSITION."
+  "Hide the Org-srs drawer at POSITION."
   (save-excursion
     (goto-char position)
     (org-srs-log-beginning-of-drawer)
