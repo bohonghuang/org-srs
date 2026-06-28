@@ -1,6 +1,6 @@
 ;;; org-srs-entry.el --- Operations related to review entries -*- lexical-binding: t -*-
 
-;; Copyright (C) 2024-2025 Bohong Huang
+;; Copyright (C) 2024-2026 Bohong Huang
 
 ;; Author: Bohong Huang <bohonghuang@qq.com>
 ;; Maintainer: Bohong Huang <bohonghuang@qq.com>
